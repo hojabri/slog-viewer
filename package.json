@@ -1,0 +1,93 @@
+{
+  "name": "slog-viewer",
+  "displayName": "Slog Viewer",
+  "description": "Transforms structured JSON logs in the Debug Console into readable, colored, and collapsible format",
+  "version": "1.0.0",
+  "publisher": "your-publisher",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Formatters"
+  ],
+  "keywords": [
+    "json",
+    "logs",
+    "slog",
+    "debug",
+    "console",
+    "structured-logging"
+  ],
+  "activationEvents": [
+    "onDebug"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "slog-viewer.toggle",
+        "title": "Slog Viewer: Toggle Formatting"
+      },
+      {
+        "command": "slog-viewer.enable",
+        "title": "Slog Viewer: Enable"
+      },
+      {
+        "command": "slog-viewer.disable",
+        "title": "Slog Viewer: Disable"
+      }
+    ],
+    "configuration": {
+      "title": "Slog Viewer",
+      "properties": {
+        "slogViewer.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic formatting of JSON logs in Debug Console"
+        },
+        "slogViewer.colorizeOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "[Deprecated] This setting is no longer used. Output is plain text only."
+        },
+        "slogViewer.collapseJSON": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show JSON collapsed by default (expandable with +)"
+        },
+        "slogViewer.showOriginal": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show original JSON log alongside formatted output"
+        },
+        "slogViewer.logLevelColors": {
+          "type": "object",
+          "default": {
+            "error": "red",
+            "warn": "yellow",
+            "info": "blue",
+            "debug": "gray",
+            "trace": "gray"
+          },
+          "description": "Color mapping for log levels"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.24",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT"
+}
