@@ -6,7 +6,6 @@ let logs = [];
 let config = {
     collapseJSON: true,
     showOriginal: false,
-    maxLogEntries: 10000,
     autoScroll: true,
     theme: 'auto'
 };
@@ -48,16 +47,6 @@ window.addEventListener('message', event => {
 function addLog(log) {
     logs.push(log);
 
-    // Trim if exceeds max
-    if (logs.length > config.maxLogEntries) {
-        logs.shift();
-        // Remove first log element from DOM
-        const firstLog = logContainer.querySelector('.log-entry');
-        if (firstLog) {
-            firstLog.remove();
-        }
-    }
-
     // Hide empty state
     const emptyState = logContainer.querySelector('.empty-state');
     if (emptyState) {
@@ -77,9 +66,10 @@ function addLog(log) {
 // Create log element
 function createLogElement(log, index) {
     const entry = document.createElement('div');
-    entry.className = `log-entry ${log.level.toLowerCase()}`;
+    const levelClass = log.level ? log.level.toLowerCase() : '';
+    entry.className = `log-entry ${levelClass}`;
     entry.dataset.index = index;
-    entry.dataset.level = log.level.toLowerCase();
+    entry.dataset.level = levelClass;
 
     // Header
     const header = document.createElement('div');
@@ -100,8 +90,8 @@ function createLogElement(log, index) {
     timestamp.textContent = formatTimestamp(log.timestamp);
 
     const level = document.createElement('span');
-    level.className = `log-level ${log.level.toLowerCase()}`;
-    level.textContent = log.level;
+    level.className = `log-level ${levelClass}`;
+    level.textContent = log.level || 'LOG';
 
     const message = document.createElement('span');
     message.className = 'log-message';

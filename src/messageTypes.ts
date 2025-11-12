@@ -55,7 +55,6 @@ export interface CopyLogMessage {
 export interface WebviewConfig {
   collapseJSON: boolean;
   showOriginal: boolean;
-  maxLogEntries: number;
   autoScroll: boolean;
   theme: 'light' | 'dark' | 'auto';
 }

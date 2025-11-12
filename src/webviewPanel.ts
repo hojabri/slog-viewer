@@ -83,7 +83,6 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     const webviewConfig: WebviewConfig = {
       collapseJSON: config.get<boolean>('collapseJSON', true),
       showOriginal: config.get<boolean>('showOriginal', false),
-      maxLogEntries: config.get<number>('maxLogEntries', 10000),
       autoScroll: config.get<boolean>('autoScroll', true),
       theme: config.get<'light' | 'dark' | 'auto'>('theme', 'auto')
     };

@@ -1,10 +1,10 @@
 /* VSCode theme variables */
 :root {
-    --error-color: #f48771;
-    --warn-color: #cca700;
-    --info-color: #75beff;
-    --debug-color: #858585;
-    --trace-color: #666666;
+    --error-color: #ff5555;
+    --warn-color: #ffb86c;
+    --info-color: #8be9fd;
+    --debug-color: #999999;
+    --trace-color: #6272a4;
 
     --background: var(--vscode-editor-background);
     --foreground: var(--vscode-editor-foreground);
@@ -160,15 +160,22 @@ body {
     padding-left: 8px;
 }
 
-.log-entry.error {
+.log-entry.error,
+.log-entry.fatal,
+.log-entry.panic,
+.log-entry.critical {
     border-left-color: var(--error-color);
+    border-left-width: 4px;
 }
 
-.log-entry.warn {
+.log-entry.warn,
+.log-entry.warning {
     border-left-color: var(--warn-color);
+    border-left-width: 4px;
 }
 
-.log-entry.info {
+.log-entry.info,
+.log-entry.information {
     border-left-color: var(--info-color);
 }
 
@@ -225,29 +232,36 @@ body {
     text-align: center;
 }
 
-.log-level.error {
-    color: var(--error-color);
-    background: rgba(244, 135, 113, 0.15);
+.log-level.error,
+.log-level.fatal,
+.log-level.panic,
+.log-level.critical {
+    color: #ffffff;
+    background: var(--error-color);
+    font-weight: bold;
 }
 
-.log-level.warn {
-    color: var(--warn-color);
-    background: rgba(204, 167, 0, 0.15);
+.log-level.warn,
+.log-level.warning {
+    color: #000000;
+    background: var(--warn-color);
+    font-weight: bold;
 }
 
-.log-level.info {
-    color: var(--info-color);
-    background: rgba(117, 190, 255, 0.15);
+.log-level.info,
+.log-level.information {
+    color: #000000;
+    background: var(--info-color);
 }
 
 .log-level.debug {
     color: var(--debug-color);
-    background: rgba(133, 133, 133, 0.15);
+    background: rgba(153, 153, 153, 0.15);
 }
 
 .log-level.trace {
     color: var(--trace-color);
-    background: rgba(102, 102, 102, 0.15);
+    background: rgba(98, 114, 164, 0.15);
 }
 
 .log-message {

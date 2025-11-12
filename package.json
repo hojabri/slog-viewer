@@ -76,11 +76,6 @@
           "default": false,
           "description": "Show original JSON log alongside formatted output"
         },
-        "slogViewer.maxLogEntries": {
-          "type": "number",
-          "default": 10000,
-          "description": "Maximum number of log entries to keep in memory"
-        },
         "slogViewer.autoScroll": {
           "type": "boolean",
           "default": true,

@@ -135,8 +135,29 @@ export function parseJSONLog(line: string): ParsedLog | null {
 
     // Extract common fields (check various common field names)
     const timestamp = obj.time || obj.timestamp || obj.ts || obj['@timestamp'] || obj.datetime;
-    const level = obj.level || obj.severity || obj.lvl || obj.loglevel;
+    let level = obj.level || obj.severity || obj.lvl || obj.loglevel;
     const message = obj.message || obj.msg || obj.text;
+
+    // Normalize log level to standard values
+    if (level) {
+      const levelLower = level.toString().toLowerCase();
+      if (levelLower === 'fatal' || levelLower === 'panic' || levelLower === 'critical') {
+        level = 'ERROR';
+      } else if (levelLower === 'warning' || levelLower === 'warn') {
+        level = 'WARN';
+      } else if (levelLower === 'information' || levelLower === 'info') {
+        level = 'INFO';
+      } else if (levelLower === 'debug') {
+        level = 'DEBUG';
+      } else if (levelLower === 'trace') {
+        level = 'TRACE';
+      } else if (levelLower === 'error' || levelLower === 'err') {
+        level = 'ERROR';
+      } else {
+        // Keep original case if it doesn't match known levels
+        level = level.toString().toUpperCase();
+      }
+    }
 
     // Get other fields (excluding the extracted ones)
     const otherFields: Record<string, any> = {};
