@@ -1,0 +1,41 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3d5a80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#293241;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background with gradient -->
+  <rect width="128" height="128" rx="20" fill="url(#bgGradient)"/>
+
+  <!-- Document/Log container -->
+  <rect x="20" y="16" width="88" height="96" rx="6" fill="#1a1d23" stroke="#569cd6" stroke-width="3"/>
+
+  <!-- Log lines with different colors representing log levels -->
+  <!-- Error line (red) -->
+  <circle cx="28" cy="32" r="4" fill="#ff6b6b"/>
+  <rect x="38" y="28" width="62" height="8" rx="2" fill="#ff6b6b" opacity="0.5"/>
+
+  <!-- Warning line (yellow) -->
+  <circle cx="28" cy="48" r="4" fill="#ffd93d"/>
+  <rect x="38" y="44" width="56" height="8" rx="2" fill="#ffd93d" opacity="0.5"/>
+
+  <!-- Info line (blue) -->
+  <circle cx="28" cy="64" r="4" fill="#6bcfff"/>
+  <rect x="38" y="60" width="70" height="8" rx="2" fill="#6bcfff" opacity="0.5"/>
+
+  <!-- Debug line (gray) -->
+  <circle cx="28" cy="80" r="4" fill="#98a4b3"/>
+  <rect x="38" y="76" width="52" height="8" rx="2" fill="#98a4b3" opacity="0.4"/>
+
+  <!-- Debug line (gray) -->
+  <circle cx="28" cy="96" r="4" fill="#98a4b3"/>
+  <rect x="38" y="92" width="64" height="8" rx="2" fill="#98a4b3" opacity="0.4"/>
+
+  <!-- Magnifying glass overlay (search feature) - bottom right -->
+  <circle cx="88" cy="88" r="16" fill="#293241" stroke="#6bcfff" stroke-width="3"/>
+  <circle cx="88" cy="88" r="11" fill="none" stroke="#6bcfff" stroke-width="2.5"/>
+  <line x1="98" y1="98" x2="108" y2="108" stroke="#6bcfff" stroke-width="4" stroke-linecap="round"/>
+</svg>
