@@ -1,9 +1,10 @@
 {
   "name": "slog-viewer",
   "displayName": "Slog Viewer",
-  "description": "Transforms structured JSON logs in the Debug Console into readable, colored, and collapsible format",
+  "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
   "version": "1.0.0",
   "publisher": "hojabri",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -96,7 +97,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npm run copy-webview",
+    "copy-webview": "mkdir -p dist/webview && cp src/webview/*.html src/webview/*.css src/webview/*.js dist/webview/",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts"
   },

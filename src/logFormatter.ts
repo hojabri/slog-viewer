@@ -176,7 +176,6 @@ export function parseJSONLog(line: string): ParsedLog | null {
  * Format a parsed log for display in the Debug Console
  */
 export function formatLog(parsed: ParsedLog, config: vscode.WorkspaceConfiguration): string {
-  const collapse = config.get<boolean>('collapseJSON', true);
   const showOriginal = config.get<boolean>('showOriginal', false);
 
   let output = '';

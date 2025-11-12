@@ -9,3 +9,6 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 node_modules/**
+test-app.js
+CLAUDE.md
+.claude/**

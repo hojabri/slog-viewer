@@ -16,8 +16,8 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    context: vscode.WebviewViewResolveContext,
-    token: vscode.CancellationToken
+    _context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken
   ): void | Thenable<void> {
     this.view = webviewView;
 
@@ -112,7 +112,7 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     // Read HTML template
     const htmlPath = path.join(
       this.extensionUri.fsPath,
-      'src',
+      'dist',
       'webview',
       'index.html'
     );
@@ -121,7 +121,7 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     // Read CSS
     const cssPath = path.join(
       this.extensionUri.fsPath,
-      'src',
+      'dist',
       'webview',
       'styles.css'
     );
@@ -130,7 +130,7 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     // Read JavaScript
     const jsPath = path.join(
       this.extensionUri.fsPath,
-      'src',
+      'dist',
       'webview',
       'webview.js'
     );

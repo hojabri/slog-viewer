@@ -75,7 +75,7 @@ A VSCode/Cursor extension that transforms structured JSON logs in the Debug Cons
 ## Usage
 
 1. **Start Debugging**: Launch your application in debug mode (F5)
-2. **View Formatted Logs**: Open the "Slog Viewer" output channel to see formatted logs
+2. **View Formatted Logs**: The "Slog Viewer" panel will automatically appear in the bottom panel when structured logs are detected
 3. **Original Debug Console**: The original Debug Console still shows raw output
 
 ### Commands
@@ -90,9 +90,11 @@ A VSCode/Cursor extension that transforms structured JSON logs in the Debug Cons
 Open VSCode Settings (Ctrl+, / Cmd+,) and search for "Slog Viewer":
 
 - `slogViewer.enabled` - Enable/disable automatic formatting (default: `true`)
-- `slogViewer.colorizeOutput` - Use ANSI colors for syntax highlighting (default: `true`)
 - `slogViewer.collapseJSON` - Show JSON collapsed by default (default: `true`)
 - `slogViewer.showOriginal` - Show original JSON alongside formatted output (default: `false`)
+- `slogViewer.maxLogEntries` - Maximum number of log entries to keep in memory (default: `10000`)
+- `slogViewer.autoScroll` - Automatically scroll to the latest log entry (default: `true`)
+- `slogViewer.theme` - Theme for the log viewer: `light`, `dark`, or `auto` (default: `auto`)
 
 ## Supported Log Formats
 
@@ -104,20 +106,31 @@ The extension automatically detects common JSON log field names:
 
 All other fields are displayed as formatted JSON.
 
+## Features
+
+- **Interactive Webview**: Beautiful, modern UI with VSCode theme integration
+- **Log Level Filtering**: Filter logs by level (Error, Warning, Info, Debug, Trace)
+- **Search**: Real-time search across log messages and fields
+- **Collapsible JSON**: Click on log entries to expand/collapse JSON fields
+- **Syntax Highlighting**: Color-coded JSON with proper type formatting
+- **Auto-scroll**: Automatically scroll to latest logs (configurable)
+- **Performance**: Handles thousands of logs efficiently with configurable limits
+
 ## Color Scheme
 
-- **ERROR/FATAL**: Bright Red
-- **WARN/WARNING**: Bright Yellow
-- **INFO**: Bright Blue
+Log levels are color-coded with badges:
+- **ERROR/FATAL**: Red
+- **WARN/WARNING**: Yellow
+- **INFO**: Blue
 - **DEBUG**: Gray
 - **TRACE**: Dim Gray
 
-JSON syntax highlighting:
-- **Keys**: Cyan
-- **Strings**: Green
-- **Numbers**: Magenta
-- **Booleans**: Yellow
-- **Null**: Gray
+JSON syntax highlighting uses VSCode theme colors:
+- **Keys**: Property color
+- **Strings**: String color
+- **Numbers**: Number color
+- **Booleans**: Boolean color
+- **Null**: Error color
 
 ## Examples
 
@@ -169,13 +182,13 @@ npm run watch       # Watch mode for development
 1. Open the project in VSCode
 2. Press `F5` to launch Extension Development Host
 3. Open a project with JSON logging
-4. Start debugging and observe formatted logs in "Slog Viewer" output channel
+4. Start debugging and observe formatted logs in the "Slog Viewer" panel
 
 ## Limitations
 
-- The extension creates a separate "Slog Viewer" output channel for formatted logs
-- Original Debug Console still shows raw JSON (this is a VSCode API limitation)
-- ANSI colors require VSCode 1.80.0 or later
+- The extension displays formatted logs in a separate "Slog Viewer" panel (VSCode API limitation prevents modifying the Debug Console directly)
+- Original Debug Console still shows raw JSON output
+- Only structured logs (JSON/logfmt) are formatted; plain text logs remain in the Debug Console
 
 ## Contributing
 

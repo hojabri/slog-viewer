@@ -155,7 +155,7 @@ body {
 
 /* Log entry */
 .log-entry {
-    margin-bottom: 12px;
+    margin-bottom: 4px;
     border-left: 3px solid var(--border-color);
     padding-left: 8px;
 }
