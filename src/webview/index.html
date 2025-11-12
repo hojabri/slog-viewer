@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}';">
+    <title>Slog Viewer</title>
+</head>
+<body>
+    <div class="container">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button id="clearBtn" class="btn" title="Clear all logs">
+                    <span class="icon">🗑️</span> Clear
+                </button>
+                <div class="separator"></div>
+                <label for="levelFilter">Filter:</label>
+                <select id="levelFilter" class="filter-select">
+                    <option value="all">All Levels</option>
+                    <option value="error">Error</option>
+                    <option value="warn">Warning</option>
+                    <option value="info">Info</option>
+                    <option value="debug">Debug</option>
+                    <option value="trace">Trace</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search logs...">
+            </div>
+        </div>
+
+        <!-- Log container -->
+        <div id="logContainer" class="log-container">
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>No logs yet</p>
+                <small>Start debugging to see formatted logs</small>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{nonce}}">
+        // This will be replaced with the actual script content
+        {{scriptContent}}
+    </script>
+</body>
+</html>
