@@ -1,33 +1,19 @@
 import * as vscode from 'vscode';
-import { processLine } from './logFormatter';
+import { parseJSONLog, isJSONLog } from './logFormatter';
+import { SlogViewerWebviewProvider } from './webviewPanel';
 
 /**
- * Debug Adapter Descriptor Factory that wraps the original debug adapter
- * to intercept and modify output messages
- */
-export class SlogDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
-  async createDebugAdapterDescriptor(
-    session: vscode.DebugSession,
-    executable: vscode.DebugAdapterExecutable | undefined
-  ): Promise<vscode.DebugAdapterDescriptor | undefined> {
-    // We can't easily wrap the debug adapter without implementing a full proxy
-    // This approach has limitations - returning undefined to use default
-    return undefined;
-  }
-}
-
-/**
- * Alternative approach: Use DebugAdapterTracker with custom output channel
- * This creates a separate output channel with formatted logs
+ * Debug Adapter Tracker that intercepts log output and sends to webview
  */
 export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
   private config: vscode.WorkspaceConfiguration;
-  private outputChannel: vscode.OutputChannel;
+  private webviewProvider: SlogViewerWebviewProvider;
   private processedLines: Set<string> = new Set();
+  private hasShownWebview = false;
 
-  constructor(session: vscode.DebugSession, outputChannel: vscode.OutputChannel) {
+  constructor(session: vscode.DebugSession, webviewProvider: SlogViewerWebviewProvider) {
     this.config = vscode.workspace.getConfiguration('slogViewer');
-    this.outputChannel = outputChannel;
+    this.webviewProvider = webviewProvider;
   }
 
   onDidSendMessage(message: any): void {
@@ -61,26 +47,30 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
 
       this.processedLines.add(line);
 
-      const formatted = processLine(line, this.config);
-      if (formatted) {
-        // Show formatted JSON/logfmt logs
-        this.outputChannel.appendLine(formatted);
-      } else {
-        // Show non-JSON logs as-is
-        this.outputChannel.appendLine(line);
-      }
+      // Check if line is JSON/logfmt
+      if (isJSONLog(line)) {
+        const parsed = parseJSONLog(line);
+        if (parsed) {
+          // Send parsed log to webview
+          this.webviewProvider.addLog(parsed);
 
-      // Auto-show the output channel on first log (without preserveFocus to switch to the tab)
-      if (this.processedLines.size === 1) {
-        this.outputChannel.show(false); // false = switch focus to the Slog Viewer tab
+          // Auto-show the webview on first log
+          if (!this.hasShownWebview) {
+            this.webviewProvider.show();
+            this.hasShownWebview = true;
+          }
+        }
       }
+      // Note: We only display structured logs in the webview.
+      // Plain text logs remain in the Debug Console.
     }
   }
 
   onWillStartSession(): void {
     this.config = vscode.workspace.getConfiguration('slogViewer');
     this.processedLines.clear();
-    this.outputChannel.clear();
+    this.hasShownWebview = false;
+    this.webviewProvider.clearLogs();
   }
 
   onWillStopSession(): void {
@@ -89,16 +79,16 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
 }
 
 /**
- * Tracker factory that provides output channel
+ * Tracker factory that provides webview provider
  */
 export class SlogDebugAdapterTrackerFactory implements vscode.DebugAdapterTrackerFactory {
-  private outputChannel: vscode.OutputChannel;
+  private webviewProvider: SlogViewerWebviewProvider;
 
-  constructor(outputChannel: vscode.OutputChannel) {
-    this.outputChannel = outputChannel;
+  constructor(webviewProvider: SlogViewerWebviewProvider) {
+    this.webviewProvider = webviewProvider;
   }
 
   createDebugAdapterTracker(session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> {
-    return new SlogDebugAdapterTracker(session, this.outputChannel);
+    return new SlogDebugAdapterTracker(session, this.webviewProvider);
   }
 }

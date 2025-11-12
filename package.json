@@ -3,7 +3,7 @@
   "displayName": "Slog Viewer",
   "description": "Transforms structured JSON logs in the Debug Console into readable, colored, and collapsible format",
   "version": "1.0.0",
-  "publisher": "your-publisher",
+  "publisher": "hojabri",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -36,6 +36,25 @@
       {
         "command": "slog-viewer.disable",
         "title": "Slog Viewer: Disable"
+      },
+      {
+        "command": "slog-viewer.clearLogs",
+        "title": "Slog Viewer: Clear Logs"
+      }
+    ],
+    "views": {
+      "panel": [
+        {
+          "id": "slog-viewer.logView",
+          "name": "Slog Viewer",
+          "type": "webview"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "slog-viewer.logView",
+        "contents": "No logs yet.\n\nStart debugging to see formatted structured logs.\n\n[Start Debugging](command:workbench.action.debug.start)"
       }
     ],
     "configuration": {
@@ -44,33 +63,33 @@
         "slogViewer.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable automatic formatting of JSON logs in Debug Console"
-        },
-        "slogViewer.colorizeOutput": {
-          "type": "boolean",
-          "default": false,
-          "description": "[Deprecated] This setting is no longer used. Output is plain text only."
+          "description": "Enable automatic formatting of JSON logs"
         },
         "slogViewer.collapseJSON": {
           "type": "boolean",
           "default": true,
-          "description": "Show JSON collapsed by default (expandable with +)"
+          "description": "Show JSON collapsed by default (click to expand)"
         },
         "slogViewer.showOriginal": {
           "type": "boolean",
           "default": false,
           "description": "Show original JSON log alongside formatted output"
         },
-        "slogViewer.logLevelColors": {
-          "type": "object",
-          "default": {
-            "error": "red",
-            "warn": "yellow",
-            "info": "blue",
-            "debug": "gray",
-            "trace": "gray"
-          },
-          "description": "Color mapping for log levels"
+        "slogViewer.maxLogEntries": {
+          "type": "number",
+          "default": 10000,
+          "description": "Maximum number of log entries to keep in memory"
+        },
+        "slogViewer.autoScroll": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scroll to the latest log entry"
+        },
+        "slogViewer.theme": {
+          "type": "string",
+          "enum": ["light", "dark", "auto"],
+          "default": "auto",
+          "description": "Theme for the log viewer (auto uses VSCode theme)"
         }
       }
     }
