@@ -8,9 +8,14 @@ import * as path from 'path';
 import { ParsedLog } from './logFormatter';
 import { ExtensionMessage, WebviewConfig } from './messageTypes';
 
+// Maximum number of logs to buffer before webview is ready
+const MAX_PENDING_LOGS = 500;
+
 export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'slog-viewer.logView';
   private view?: vscode.WebviewView;
+  private pendingLogs: ParsedLog[] = [];
+  private isWebviewReady = false;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -29,21 +34,56 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
 
     // Handle messages from webview
-    webviewView.webview.onDidReceiveMessage(message => {
+    webviewView.webview.onDidReceiveMessage(async message => {
       switch (message.type) {
         case 'ready':
           // Webview is ready, send initial config
+          this.isWebviewReady = true;
           this.updateConfig();
+          // Send any pending logs that arrived before webview was ready
+          this.flushPendingLogs();
+          break;
+        case 'openFile':
+          await this.openFile(message.filePath, message.line);
           break;
       }
     });
+
+    // Reset ready state when webview is disposed
+    webviewView.onDidDispose(() => {
+      this.isWebviewReady = false;
+    });
+  }
+
+  /**
+   * Flush any logs that were buffered before webview was ready
+   */
+  private flushPendingLogs(): void {
+    if (!this.view || !this.isWebviewReady) {
+      return;
+    }
+
+    for (const log of this.pendingLogs) {
+      const message: ExtensionMessage = {
+        type: 'addLog',
+        log: log
+      };
+      this.view.webview.postMessage(message);
+    }
+    this.pendingLogs = [];
   }
 
   /**
    * Add a log entry to the webview
    */
   public addLog(log: ParsedLog): void {
-    if (!this.view) {
+    // Buffer logs if webview isn't ready yet
+    if (!this.view || !this.isWebviewReady) {
+      this.pendingLogs.push(log);
+      // Evict oldest logs if buffer is full
+      while (this.pendingLogs.length > MAX_PENDING_LOGS) {
+        this.pendingLogs.shift();
+      }
       return;
     }
 
@@ -59,6 +99,9 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
    * Clear all logs in the webview
    */
   public clearLogs(): void {
+    // Always clear pending logs
+    this.pendingLogs = [];
+
     if (!this.view) {
       return;
     }
@@ -96,11 +139,33 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Show the webview
+   * Show the webview panel by focusing it
    */
   public show(): void {
-    if (this.view) {
-      this.view.show(true);
+    // Use VSCode command to focus the view - this works even if view isn't resolved yet
+    vscode.commands.executeCommand(`${SlogViewerWebviewProvider.viewType}.focus`);
+  }
+
+  /**
+   * Open a file in the editor, optionally at a specific line
+   */
+  private async openFile(filePath: string, line?: number): Promise<void> {
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const document = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(document);
+
+      if (line !== undefined && line > 0) {
+        // Move cursor to the specified line (lines are 1-indexed in logs, 0-indexed in VSCode)
+        const position = new vscode.Position(line - 1, 0);
+        editor.selection = new vscode.Selection(position, position);
+        editor.revealRange(
+          new vscode.Range(position, position),
+          vscode.TextEditorRevealType.InCenter
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Could not open file: ${filePath}`);
     }
   }
 

@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import { parseJSONLog, isJSONLog } from './logFormatter';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 
+// Maximum number of recent lines to track for deduplication
+const MAX_PROCESSED_LINES = 1000;
+
 /**
  * Debug Adapter Tracker that intercepts log output and sends to webview
  */
@@ -9,6 +12,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
   private config: vscode.WorkspaceConfiguration;
   private webviewProvider: SlogViewerWebviewProvider;
   private processedLines: Set<string> = new Set();
+  private processedLinesQueue: string[] = []; // Track insertion order for eviction
   private hasShownWebview = false;
 
   constructor(session: vscode.DebugSession, webviewProvider: SlogViewerWebviewProvider) {
@@ -45,7 +49,17 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
         continue;
       }
 
+      // Add to processed lines with bounded size
       this.processedLines.add(line);
+      this.processedLinesQueue.push(line);
+
+      // Evict oldest entries if we exceed the limit
+      while (this.processedLinesQueue.length > MAX_PROCESSED_LINES) {
+        const oldest = this.processedLinesQueue.shift();
+        if (oldest) {
+          this.processedLines.delete(oldest);
+        }
+      }
 
       // Check if line is JSON/logfmt
       if (isJSONLog(line)) {
@@ -69,6 +83,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
   onWillStartSession(): void {
     this.config = vscode.workspace.getConfiguration('slogViewer');
     this.processedLines.clear();
+    this.processedLinesQueue = [];
     this.hasShownWebview = false;
     this.webviewProvider.clearLogs();
   }

@@ -35,6 +35,16 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.debug.registerDebugAdapterTrackerFactory('*', trackerFactory)
   );
 
+  // Show Slog Viewer when debug session starts (fires after Debug Console takes focus)
+  context.subscriptions.push(
+    vscode.debug.onDidStartDebugSession(() => {
+      const config = vscode.workspace.getConfiguration('slogViewer');
+      if (config.get<boolean>('enabled', true)) {
+        webviewProvider.show();
+      }
+    })
+  );
+
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('slog-viewer.enable', () => {

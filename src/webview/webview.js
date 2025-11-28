@@ -1,6 +1,9 @@
 // Get VSCode API
 const vscode = acquireVsCodeApi();
 
+// Maximum number of logs to keep in memory and DOM
+const MAX_LOGS = 5000;
+
 // State
 let logs = [];
 let config = {
@@ -57,10 +60,32 @@ function addLog(log) {
     const logElement = createLogElement(log, logs.length - 1);
     logContainer.appendChild(logElement);
 
+    // Remove old logs if we exceed the limit
+    while (logs.length > MAX_LOGS) {
+        logs.shift();
+        const firstEntry = logContainer.querySelector('.log-entry');
+        if (firstEntry) {
+            firstEntry.remove();
+        }
+    }
+
+    // Re-index remaining entries after eviction
+    if (logs.length === MAX_LOGS) {
+        reindexLogEntries();
+    }
+
     // Auto-scroll to bottom
     if (config.autoScroll) {
         logContainer.scrollTop = logContainer.scrollHeight;
     }
+}
+
+// Re-index log entries after old ones are removed
+function reindexLogEntries() {
+    const entries = logContainer.querySelectorAll('.log-entry');
+    entries.forEach((entry, index) => {
+        entry.dataset.index = index;
+    });
 }
 
 // Create log element
@@ -229,6 +254,23 @@ function createJSONElement(obj, indent = 0) {
     return container;
 }
 
+// Regex to detect file paths with optional line number (e.g., /path/to/file.go:123 or C:\path\file.ts:45)
+const FILE_PATH_REGEX = /^((?:\/[^/:*?"<>|]+)+\.[a-zA-Z0-9]+|[A-Z]:\\(?:[^\\/:*?"<>|]+\\)*[^\\/:*?"<>|]+\.[a-zA-Z0-9]+)(?::(\d+))?$/;
+
+// Check if a string looks like a file path
+function parseFilePath(value) {
+    if (typeof value !== 'string') return null;
+
+    const match = value.match(FILE_PATH_REGEX);
+    if (match) {
+        return {
+            filePath: match[1],
+            line: match[2] ? parseInt(match[2], 10) : undefined
+        };
+    }
+    return null;
+}
+
 // Create value element with proper styling
 function createValueElement(value) {
     const span = document.createElement('span');
@@ -243,8 +285,24 @@ function createValueElement(value) {
         span.className = 'json-number';
         span.textContent = value.toString();
     } else if (typeof value === 'string') {
-        span.className = 'json-string';
-        span.textContent = `"${value}"`;
+        // Check if this is a file path
+        const fileInfo = parseFilePath(value);
+        if (fileInfo) {
+            span.className = 'json-string json-file-link';
+            span.textContent = `"${value}"`;
+            span.title = 'Click to open file';
+            span.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vscode.postMessage({
+                    type: 'openFile',
+                    filePath: fileInfo.filePath,
+                    line: fileInfo.line
+                });
+            });
+        } else {
+            span.className = 'json-string';
+            span.textContent = `"${value}"`;
+        }
     } else if (Array.isArray(value)) {
         span.className = 'json-string';
         span.textContent = JSON.stringify(value);

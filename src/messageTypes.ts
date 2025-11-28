@@ -32,7 +32,8 @@ export interface UpdateConfigMessage {
 export type WebviewMessage =
   | ReadyMessage
   | FilterChangeMessage
-  | CopyLogMessage;
+  | CopyLogMessage
+  | OpenFileMessage;
 
 export interface ReadyMessage {
   type: 'ready';
@@ -47,6 +48,12 @@ export interface FilterChangeMessage {
 export interface CopyLogMessage {
   type: 'copyLog';
   logIndex: number;
+}
+
+export interface OpenFileMessage {
+  type: 'openFile';
+  filePath: string;
+  line?: number;
 }
 
 /**
