@@ -342,3 +342,29 @@ body {
     margin-bottom: 4px;
     font-style: italic;
 }
+
+/* Auto-scroll toggle button */
+.btn-toggle {
+    position: relative;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn-toggle.active {
+    opacity: 0.6;
+}
+
+.btn-toggle.paused {
+    background: var(--vscode-inputValidation-warningBackground, #5c5c00);
+    opacity: 1;
+}
+
+.btn-toggle.paused::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--warn-color);
+    border-radius: 50%;
+}

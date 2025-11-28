@@ -13,17 +13,86 @@ let config = {
     theme: 'auto'
 };
 
+// Runtime auto-scroll state (can be paused independently of config)
+let autoScrollActive = true;
+
+// Scroll detection constants
+const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
+let scrollDebounceTimeout;
+
 // DOM elements
 const logContainer = document.getElementById('logContainer');
 const clearBtn = document.getElementById('clearBtn');
 const levelFilter = document.getElementById('levelFilter');
 const searchInput = document.getElementById('searchInput');
 
+// Check if scrolled to bottom (within threshold)
+function isScrolledToBottom() {
+    const { scrollTop, scrollHeight, clientHeight } = logContainer;
+    return (scrollHeight - scrollTop - clientHeight) <= SCROLL_THRESHOLD;
+}
+
+// Handle scroll events with debouncing
+function handleScroll() {
+    clearTimeout(scrollDebounceTimeout);
+    scrollDebounceTimeout = setTimeout(() => {
+        if (!config.autoScroll) return;
+
+        const isAtBottom = isScrolledToBottom();
+
+        if (!isAtBottom && autoScrollActive) {
+            autoScrollActive = false;
+            updateAutoScrollButton();
+        } else if (isAtBottom && !autoScrollActive) {
+            autoScrollActive = true;
+            updateAutoScrollButton();
+        }
+    }, 100);
+}
+
+// Handle auto-scroll button click
+function handleAutoScrollClick() {
+    autoScrollActive = true;
+    logContainer.scrollTop = logContainer.scrollHeight;
+    updateAutoScrollButton();
+}
+
+// Update auto-scroll button visual state
+function updateAutoScrollButton() {
+    const btn = document.getElementById('autoScrollBtn');
+    const icon = btn.querySelector('.icon');
+
+    if (!config.autoScroll) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    btn.style.display = 'flex';
+
+    if (autoScrollActive) {
+        btn.classList.remove('paused');
+        btn.classList.add('active');
+        btn.title = 'Auto-scroll is active';
+        icon.textContent = '⏬';
+    } else {
+        btn.classList.remove('active');
+        btn.classList.add('paused');
+        btn.title = 'Auto-scroll paused - click to resume';
+        icon.textContent = '⬇️';
+    }
+}
+
 // Initialize
 function init() {
     clearBtn.addEventListener('click', handleClear);
     levelFilter.addEventListener('change', handleFilter);
     searchInput.addEventListener('input', debounce(handleSearch, 300));
+
+    // Auto-scroll button and scroll detection
+    const autoScrollBtn = document.getElementById('autoScrollBtn');
+    autoScrollBtn.addEventListener('click', handleAutoScrollClick);
+    logContainer.addEventListener('scroll', handleScroll, { passive: true });
+    updateAutoScrollButton();
 
     // Notify extension that webview is ready
     vscode.postMessage({ type: 'ready' });
@@ -74,8 +143,8 @@ function addLog(log) {
         reindexLogEntries();
     }
 
-    // Auto-scroll to bottom
-    if (config.autoScroll) {
+    // Smart auto-scroll: only scroll if enabled AND active
+    if (config.autoScroll && autoScrollActive) {
         logContainer.scrollTop = logContainer.scrollHeight;
     }
 }
@@ -135,6 +204,11 @@ function createLogElement(log, index) {
             if (body.classList.contains('collapsed')) {
                 body.classList.remove('collapsed');
                 icon.classList.remove('collapsed');
+                // Pause auto-scroll when user expands a log entry
+                if (autoScrollActive) {
+                    autoScrollActive = false;
+                    updateAutoScrollButton();
+                }
             } else {
                 body.classList.add('collapsed');
                 icon.classList.add('collapsed');
@@ -348,6 +422,9 @@ function clearLogs() {
             <small>Start debugging to see formatted logs</small>
         </div>
     `;
+    // Reset auto-scroll state
+    autoScrollActive = true;
+    updateAutoScrollButton();
 }
 
 // Handle level filter
@@ -401,7 +478,14 @@ function applyFilters(level, searchText) {
 
 // Update configuration
 function updateConfig(newConfig) {
+    const wasAutoScrollEnabled = config.autoScroll;
     config = { ...config, ...newConfig };
+
+    // If user enables auto-scroll in settings, also activate runtime state
+    if (!wasAutoScrollEnabled && config.autoScroll) {
+        autoScrollActive = true;
+    }
+    updateAutoScrollButton();
 }
 
 // Debounce utility
