@@ -16,6 +16,24 @@ let config = {
 // Runtime auto-scroll state (can be paused independently of config)
 let autoScrollActive = true;
 
+// Advanced filter state
+let activeFilters = [];  // Array of FilterCondition objects
+let availableFields = new Set(['message', 'level']);  // Discovered fields from logs
+let filterIdCounter = 0;  // For generating unique filter IDs
+let contextMenuTarget = null;  // { field, value } for context menu actions
+
+// Filter operators
+const FILTER_OPERATORS = {
+    contains: (fieldValue, filterValue) =>
+        String(fieldValue).toLowerCase().includes(filterValue.toLowerCase()),
+    not_contains: (fieldValue, filterValue) =>
+        !String(fieldValue).toLowerCase().includes(filterValue.toLowerCase()),
+    equals: (fieldValue, filterValue) =>
+        String(fieldValue).toLowerCase() === filterValue.toLowerCase(),
+    not_equals: (fieldValue, filterValue) =>
+        String(fieldValue).toLowerCase() !== filterValue.toLowerCase()
+};
+
 // Scroll detection constants
 const SCROLL_THRESHOLD = 20; // pixels from bottom to consider "at bottom"
 let scrollDebounceTimeout;
@@ -94,6 +112,10 @@ function init() {
     logContainer.addEventListener('scroll', handleScroll, { passive: true });
     updateAutoScrollButton();
 
+    // Initialize advanced filtering
+    initContextMenu();
+    initFilterBuilder();
+
     // Notify extension that webview is ready
     vscode.postMessage({ type: 'ready' });
 }
@@ -119,6 +141,9 @@ window.addEventListener('message', event => {
 function addLog(log) {
     logs.push(log);
 
+    // Track fields for filter dropdown
+    trackFieldsFromLog(log);
+
     // Hide empty state
     const emptyState = logContainer.querySelector('.empty-state');
     if (emptyState) {
@@ -128,6 +153,14 @@ function addLog(log) {
     // Create and append log element
     const logElement = createLogElement(log, logs.length - 1);
     logContainer.appendChild(logElement);
+
+    // Apply filters to newly added log
+    if (!logMatchesAdvancedFilters(log) ||
+        (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
+        (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
+                                JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase())))) {
+        logElement.classList.add('hidden');
+    }
 
     // Remove old logs if we exceed the limit
     while (logs.length > MAX_LOGS) {
@@ -188,8 +221,13 @@ function createLogElement(log, index) {
     level.textContent = log.level || 'LOG';
 
     const message = document.createElement('span');
-    message.className = 'log-message';
+    message.className = 'log-message filterable';
     message.textContent = log.message;
+    // Add click handler for filtering by message
+    message.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showContextMenu(e, 'message', log.message || '');
+    });
 
     header.appendChild(timestamp);
     header.appendChild(level);
@@ -285,8 +323,16 @@ function createJSONElement(obj, indent = 0) {
     const entries = Object.entries(obj);
     entries.forEach(([key, value], index) => {
         const line = document.createElement('div');
-        line.className = 'json-line';
+        line.className = 'json-line filterable';
         line.style.paddingLeft = `${(indent + 1) * 16}px`;
+
+        // Make the whole line clickable for filtering
+        const displayValue = value === null ? 'null' :
+            typeof value === 'object' ? JSON.stringify(value) : String(value);
+        line.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showContextMenu(e, key, displayValue);
+        });
 
         // Key
         const keySpan = document.createElement('span');
@@ -300,7 +346,7 @@ function createJSONElement(obj, indent = 0) {
         colonSpan.textContent = ': ';
         line.appendChild(colonSpan);
 
-        // Value
+        // Value (no longer needs individual click handler)
         const valueSpan = createValueElement(value);
         line.appendChild(valueSpan);
 
@@ -364,7 +410,7 @@ function createValueElement(value) {
         if (fileInfo) {
             span.className = 'json-string json-file-link';
             span.textContent = `"${value}"`;
-            span.title = 'Click to open file';
+            span.title = 'Click to open file (use right-click for filter menu)';
             span.addEventListener('click', (e) => {
                 e.stopPropagation();
                 vscode.postMessage({
@@ -415,6 +461,11 @@ function handleClear() {
 // Clear all logs
 function clearLogs() {
     logs = [];
+    // Reset advanced filters
+    activeFilters = [];
+    availableFields = new Set(['message', 'level']);
+    renderFilterChips();
+
     logContainer.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">📋</div>
@@ -441,7 +492,7 @@ function handleSearch() {
     applyFilters(level, searchText);
 }
 
-// Apply filters
+// Apply filters (level, search, and advanced filters)
 function applyFilters(level, searchText) {
     const logEntries = logContainer.querySelectorAll('.log-entry');
 
@@ -462,18 +513,24 @@ function applyFilters(level, searchText) {
         let searchMatch = true;
         if (searchText && searchText.trim()) {
             const search = searchText.toLowerCase();
-            const messageMatch = log.message.toLowerCase().includes(search);
+            const messageMatch = (log.message || '').toLowerCase().includes(search);
             const fieldsMatch = JSON.stringify(log.otherFields).toLowerCase().includes(search);
             searchMatch = messageMatch || fieldsMatch;
         }
 
-        // Show/hide based on filters
-        if (levelMatch && searchMatch) {
+        // Advanced filters
+        const advancedMatch = logMatchesAdvancedFilters(log);
+
+        // Show/hide based on all filters
+        if (levelMatch && searchMatch && advancedMatch) {
             entry.classList.remove('hidden');
         } else {
             entry.classList.add('hidden');
         }
     });
+
+    // Update no-results state
+    updateNoResultsState();
 }
 
 // Update configuration
@@ -499,6 +556,425 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// ============================================
+// ADVANCED FILTERING FUNCTIONS
+// ============================================
+
+// Add a new filter
+function addFilter(field, operator, value, mode = 'include') {
+    const filter = {
+        id: `filter-${++filterIdCounter}`,
+        field,
+        operator,
+        value,
+        mode,
+        enabled: true
+    };
+    activeFilters.push(filter);
+    renderFilterChips();
+    applyAllFilters();
+}
+
+// Remove a filter by ID
+function removeFilter(filterId) {
+    activeFilters = activeFilters.filter(f => f.id !== filterId);
+    renderFilterChips();
+    applyAllFilters();
+}
+
+// Toggle filter enabled/disabled
+function toggleFilter(filterId) {
+    const filter = activeFilters.find(f => f.id === filterId);
+    if (filter) {
+        filter.enabled = !filter.enabled;
+        renderFilterChips();
+        applyAllFilters();
+    }
+}
+
+// Clear all advanced filters
+function clearAllAdvancedFilters() {
+    activeFilters = [];
+    renderFilterChips();
+    applyAllFilters();
+}
+
+// Check if a log matches all active filters
+function logMatchesAdvancedFilters(log) {
+    const enabledFilters = activeFilters.filter(f => f.enabled);
+    if (enabledFilters.length === 0) return true;
+
+    // Separate include and exclude filters
+    const includeFilters = enabledFilters.filter(f => f.mode === 'include');
+    const excludeFilters = enabledFilters.filter(f => f.mode === 'exclude');
+
+    // If there are include filters, log must match at least one
+    if (includeFilters.length > 0) {
+        const matchesInclude = includeFilters.some(filter => matchFilter(log, filter));
+        if (!matchesInclude) return false;
+    }
+
+    // Log must not match any exclude filter
+    for (const filter of excludeFilters) {
+        if (matchFilter(log, filter)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Check if a log matches a single filter
+function matchFilter(log, filter) {
+    const { field, operator, value } = filter;
+
+    let fieldValue;
+    if (field === 'message') {
+        fieldValue = log.message || '';
+    } else if (field === 'level') {
+        fieldValue = log.level || '';
+    } else {
+        fieldValue = log.otherFields?.[field];
+        if (fieldValue === undefined || fieldValue === null) return false;
+    }
+
+    const operatorFn = FILTER_OPERATORS[operator];
+    return operatorFn ? operatorFn(fieldValue, value) : false;
+}
+
+// Get field value from log (for display purposes)
+function getFieldValue(log, field) {
+    if (field === 'message') return log.message || '';
+    if (field === 'level') return log.level || '';
+    return log.otherFields?.[field] ?? '';
+}
+
+// Apply all filters (level, search, and advanced)
+function applyAllFilters() {
+    const level = levelFilter.value;
+    const searchText = searchInput.value;
+    applyFilters(level, searchText);
+}
+
+// Render filter chips in the filter area
+function renderFilterChips() {
+    const container = document.getElementById('filterChips');
+    const addBtn = document.getElementById('addFilterBtn');
+    const filterArea = document.getElementById('filterArea');
+
+    if (!container) return;
+
+    // Clear existing chips (except add button)
+    container.querySelectorAll('.filter-chip').forEach(chip => chip.remove());
+
+    // Add chips before the "Add Filter" button
+    activeFilters.forEach(filter => {
+        const chip = createFilterChip(filter);
+        container.insertBefore(chip, addBtn);
+    });
+
+    // Show/hide filter area based on whether filters exist or filter builder is open
+    const filterBuilder = document.getElementById('filterBuilder');
+    const hasFilters = activeFilters.length > 0;
+    const builderOpen = filterBuilder && !filterBuilder.classList.contains('hidden');
+    filterArea.classList.toggle('hidden', !hasFilters && !builderOpen);
+
+    // Update field dropdown with discovered fields
+    updateFieldDropdown();
+
+    // Update no-results state
+    updateNoResultsState();
+}
+
+// Create a filter chip element
+function createFilterChip(filter) {
+    const chip = document.createElement('div');
+    chip.className = `filter-chip ${filter.mode} ${filter.enabled ? '' : 'disabled'}`;
+    chip.dataset.filterId = filter.id;
+
+    const operatorDisplay = {
+        contains: '~',
+        not_contains: '!~',
+        equals: '=',
+        not_equals: '!='
+    };
+
+    const modeIcon = filter.mode === 'include' ? '+' : '-';
+    const truncatedValue = filter.value.length > 20 ? filter.value.substring(0, 20) + '...' : filter.value;
+
+    chip.innerHTML = `
+        <span class="chip-icon">${modeIcon}</span>
+        <span class="chip-field">${escapeHtml(filter.field)}</span>
+        <span class="chip-operator">${operatorDisplay[filter.operator]}</span>
+        <span class="chip-value" title="${escapeHtml(filter.value)}">"${escapeHtml(truncatedValue)}"</span>
+        <span class="chip-close" title="Remove filter">&times;</span>
+    `;
+
+    // Toggle on chip click (not close button)
+    chip.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('chip-close')) {
+            toggleFilter(filter.id);
+        }
+    });
+
+    // Remove on close button click
+    chip.querySelector('.chip-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeFilter(filter.id);
+    });
+
+    return chip;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Update field dropdown with discovered fields
+function updateFieldDropdown() {
+    const select = document.getElementById('filterField');
+    if (!select) return;
+
+    const currentValue = select.value;
+    select.innerHTML = '';
+
+    // Add standard fields first
+    ['message', 'level'].forEach(field => {
+        const option = document.createElement('option');
+        option.value = field;
+        option.textContent = field;
+        select.appendChild(option);
+    });
+
+    // Add discovered fields (sorted)
+    const sortedFields = Array.from(availableFields).filter(f => f !== 'message' && f !== 'level').sort();
+    sortedFields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field;
+        option.textContent = field;
+        select.appendChild(option);
+    });
+
+    // Restore selection if possible
+    if (currentValue && [...select.options].some(o => o.value === currentValue)) {
+        select.value = currentValue;
+    }
+}
+
+// Track fields from a log for auto-complete
+function trackFieldsFromLog(log) {
+    if (log.otherFields) {
+        Object.keys(log.otherFields).forEach(key => availableFields.add(key));
+    }
+}
+
+// Update no-results state
+function updateNoResultsState() {
+    const logEntries = logContainer.querySelectorAll('.log-entry');
+    const visibleCount = Array.from(logEntries).filter(e => !e.classList.contains('hidden')).length;
+    const hasLogs = logs.length > 0;
+
+    let noResults = logContainer.querySelector('.no-filter-results');
+
+    if (hasLogs && visibleCount === 0 && (activeFilters.length > 0 || levelFilter.value !== 'all' || searchInput.value)) {
+        if (!noResults) {
+            noResults = document.createElement('div');
+            noResults.className = 'no-filter-results';
+            noResults.innerHTML = `
+                <div class="no-results-icon">🔍</div>
+                <p>No logs match your filters</p>
+                <button class="btn btn-small" id="clearFiltersBtn">Clear All Filters</button>
+            `;
+            logContainer.appendChild(noResults);
+
+            document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+                clearAllAdvancedFilters();
+                levelFilter.value = 'all';
+                searchInput.value = '';
+                applyAllFilters();
+            });
+        }
+    } else if (noResults) {
+        noResults.remove();
+    }
+}
+
+// ============================================
+// CONTEXT MENU FUNCTIONS
+// ============================================
+
+// Show context menu on click
+function showContextMenu(e, field, value) {
+    e.stopPropagation();
+
+    contextMenuTarget = { field, value: String(value) };
+
+    const menu = document.getElementById('contextMenu');
+    menu.classList.remove('hidden');
+
+    // Update menu text with field/value info
+    const includeItem = menu.querySelector('[data-action="include"]');
+    const excludeItem = menu.querySelector('[data-action="exclude"]');
+    const truncatedValue = contextMenuTarget.value.length > 30
+        ? contextMenuTarget.value.substring(0, 30) + '...'
+        : contextMenuTarget.value;
+
+    includeItem.innerHTML = `<span class="menu-icon">+</span> Include ${escapeHtml(field)} = "${escapeHtml(truncatedValue)}"`;
+    excludeItem.innerHTML = `<span class="menu-icon">-</span> Exclude ${escapeHtml(field)} = "${escapeHtml(truncatedValue)}"`;
+
+    // Position menu near click, but keep on screen
+    const menuRect = menu.getBoundingClientRect();
+    let x = e.clientX;
+    let y = e.clientY;
+
+    // Temporarily show to get dimensions
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    const actualRect = menu.getBoundingClientRect();
+
+    if (x + actualRect.width > window.innerWidth) {
+        x = window.innerWidth - actualRect.width - 10;
+    }
+    if (y + actualRect.height > window.innerHeight) {
+        y = window.innerHeight - actualRect.height - 10;
+    }
+
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
+
+// Hide context menu
+function hideContextMenu() {
+    const menu = document.getElementById('contextMenu');
+    if (menu) {
+        menu.classList.add('hidden');
+    }
+    contextMenuTarget = null;
+}
+
+// Handle context menu action
+function handleContextMenuAction(action) {
+    if (!contextMenuTarget) return;
+
+    const { field, value } = contextMenuTarget;
+
+    switch (action) {
+        case 'include':
+            addFilter(field, 'contains', value, 'include');
+            break;
+        case 'exclude':
+            addFilter(field, 'contains', value, 'exclude');
+            break;
+        case 'include_exact':
+            addFilter(field, 'equals', value, 'include');
+            break;
+        case 'exclude_exact':
+            addFilter(field, 'equals', value, 'exclude');
+            break;
+        case 'copy':
+            navigator.clipboard.writeText(value);
+            break;
+    }
+
+    hideContextMenu();
+}
+
+// Initialize context menu handlers
+function initContextMenu() {
+    // Hide menu on click outside
+    document.addEventListener('click', hideContextMenu);
+
+    // Handle Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            hideContextMenu();
+            // Also hide filter builder
+            const filterBuilder = document.getElementById('filterBuilder');
+            if (filterBuilder && !filterBuilder.classList.contains('hidden')) {
+                filterBuilder.classList.add('hidden');
+                renderFilterChips();
+            }
+        }
+    });
+
+    // Handle context menu item clicks
+    const menu = document.getElementById('contextMenu');
+    if (menu) {
+        menu.querySelectorAll('.context-menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleContextMenuAction(item.dataset.action);
+            });
+        });
+    }
+}
+
+// ============================================
+// FILTER BUILDER PANEL
+// ============================================
+
+// Initialize filter builder
+function initFilterBuilder() {
+    const addBtn = document.getElementById('addFilterBtn');
+    const builder = document.getElementById('filterBuilder');
+    const applyBtn = document.getElementById('applyFilterBtn');
+    const cancelBtn = document.getElementById('cancelFilterBtn');
+    const filterArea = document.getElementById('filterArea');
+
+    if (!addBtn || !builder) return;
+
+    addBtn.addEventListener('click', () => {
+        builder.classList.remove('hidden');
+        filterArea.classList.remove('hidden');
+        document.getElementById('filterValue').focus();
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        builder.classList.add('hidden');
+        resetFilterBuilder();
+        renderFilterChips();
+    });
+
+    applyBtn.addEventListener('click', () => {
+        const field = document.getElementById('filterField').value;
+        const operator = document.getElementById('filterOperator').value;
+        const value = document.getElementById('filterValue').value.trim();
+
+        if (value) {
+            // Determine mode based on operator (not_ operators are exclude)
+            const mode = operator.startsWith('not_') ? 'exclude' : 'include';
+            // Convert operator to base form for exclude mode
+            const baseOperator = operator.startsWith('not_') ? operator : operator;
+            addFilter(field, baseOperator, value, mode);
+            builder.classList.add('hidden');
+            resetFilterBuilder();
+        }
+    });
+
+    // Allow Enter key to apply
+    document.getElementById('filterValue').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            applyBtn.click();
+        } else if (e.key === 'Escape') {
+            cancelBtn.click();
+        }
+    });
+}
+
+// Reset filter builder form
+function resetFilterBuilder() {
+    const fieldSelect = document.getElementById('filterField');
+    const operatorSelect = document.getElementById('filterOperator');
+    const valueInput = document.getElementById('filterValue');
+
+    if (fieldSelect) fieldSelect.selectedIndex = 0;
+    if (operatorSelect) operatorSelect.selectedIndex = 0;
+    if (valueInput) valueInput.value = '';
 }
 
 // Initialize on load

@@ -368,3 +368,277 @@ body {
     background: var(--warn-color);
     border-radius: 50%;
 }
+
+/* ============================================
+   ADVANCED FILTER STYLES
+   ============================================ */
+
+/* Filter Area */
+.filter-area {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--vscode-sideBar-background, var(--background));
+    flex-shrink: 0;
+}
+
+.filter-area.hidden {
+    display: none;
+}
+
+/* Filter Chips Container */
+.filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    min-height: 28px;
+}
+
+/* Individual Filter Chip */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s, background-color 0.2s;
+    user-select: none;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.filter-chip.include {
+    background: rgba(46, 160, 67, 0.2);
+    border: 1px solid var(--vscode-testing-iconPassed, #2ea043);
+    color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.filter-chip.exclude {
+    background: rgba(248, 81, 73, 0.2);
+    border: 1px solid var(--vscode-testing-iconFailed, #f85149);
+    color: var(--vscode-testing-iconFailed, #f85149);
+}
+
+.filter-chip.disabled {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.filter-chip:hover {
+    opacity: 0.8;
+}
+
+.filter-chip .chip-icon {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.filter-chip .chip-field {
+    font-weight: 600;
+}
+
+.filter-chip .chip-operator {
+    opacity: 0.7;
+}
+
+.filter-chip .chip-value {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.filter-chip .chip-close {
+    margin-left: 4px;
+    padding: 0 2px;
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.filter-chip .chip-close:hover {
+    opacity: 1;
+}
+
+/* Add Filter Button */
+.add-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--foreground);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s, border-color 0.2s;
+}
+
+.add-filter-btn:hover {
+    opacity: 1;
+    border-color: var(--vscode-focusBorder);
+}
+
+.add-filter-btn .icon {
+    font-size: 12px;
+}
+
+/* Filter Builder Panel */
+.filter-builder {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--vscode-input-background);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.filter-builder.hidden {
+    display: none;
+}
+
+.filter-builder-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-builder .filter-select {
+    padding: 4px 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-background);
+    color: var(--input-foreground);
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.filter-builder .filter-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 4px 8px;
+    border: 1px solid var(--input-border);
+    background: var(--input-background);
+    color: var(--input-foreground);
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.filter-builder .filter-input:focus,
+.filter-builder .filter-select:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+}
+
+.btn-primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 4px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-primary:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    padding: 4px 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-secondary:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.btn-small {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--vscode-menu-background, var(--background));
+    border: 1px solid var(--vscode-menu-border, var(--border-color));
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    min-width: 220px;
+    padding: 4px 0;
+}
+
+.context-menu.hidden {
+    display: none;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--vscode-menu-foreground, var(--foreground));
+}
+
+.context-menu-item:hover {
+    background: var(--vscode-menu-selectionBackground, var(--hover-background));
+}
+
+.context-menu-item .menu-icon {
+    width: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.context-menu-item[data-action="include"] .menu-icon {
+    color: var(--vscode-testing-iconPassed, #2ea043);
+}
+
+.context-menu-item[data-action="exclude"] .menu-icon {
+    color: var(--vscode-testing-iconFailed, #f85149);
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--vscode-menu-separatorBackground, var(--border-color));
+    margin: 4px 0;
+}
+
+/* Highlight filterable elements on hover */
+.log-message.filterable:hover,
+.json-line.filterable:hover {
+    background: var(--vscode-editor-selectionBackground, rgba(255, 255, 255, 0.1));
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+/* No results state */
+.no-filter-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    opacity: 0.6;
+}
+
+.no-filter-results .no-results-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.no-filter-results p {
+    margin-bottom: 12px;
+    font-size: 14px;
+}

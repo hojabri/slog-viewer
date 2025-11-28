@@ -33,6 +33,49 @@
             </div>
         </div>
 
+        <!-- Filter Area -->
+        <div class="filter-area hidden" id="filterArea">
+            <!-- Active Filter Chips -->
+            <div class="filter-chips" id="filterChips">
+                <button class="add-filter-btn" id="addFilterBtn" title="Add new filter">
+                    <span class="icon">+</span> Add Filter
+                </button>
+            </div>
+
+            <!-- Filter Builder Panel (hidden by default) -->
+            <div class="filter-builder hidden" id="filterBuilder">
+                <div class="filter-builder-row">
+                    <select id="filterField" class="filter-select">
+                        <option value="message">message</option>
+                        <option value="level">level</option>
+                    </select>
+                    <select id="filterOperator" class="filter-select">
+                        <option value="contains">contains</option>
+                        <option value="not_contains">does not contain</option>
+                        <option value="equals">equals</option>
+                        <option value="not_equals">does not equal</option>
+                    </select>
+                    <input type="text" id="filterValue" class="filter-input" placeholder="Value...">
+                    <button id="applyFilterBtn" class="btn btn-primary">Apply</button>
+                    <button id="cancelFilterBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Context Menu (hidden, positioned absolutely) -->
+        <div class="context-menu hidden" id="contextMenu">
+            <div class="context-menu-item" data-action="include">
+                <span class="menu-icon">+</span> Include this value
+            </div>
+            <div class="context-menu-item" data-action="exclude">
+                <span class="menu-icon">-</span> Exclude this value
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="copy">
+                <span class="menu-icon">📋</span> Copy value
+            </div>
+        </div>
+
         <!-- Log container -->
         <div id="logContainer" class="log-container">
             <div class="empty-state">
