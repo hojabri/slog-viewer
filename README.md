@@ -57,3 +57,4 @@ Access via VSCode Settings → "Slog Viewer":
 ## License
 
 MIT
+
