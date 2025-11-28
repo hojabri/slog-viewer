@@ -21,11 +21,6 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
   }
 
   onDidSendMessage(message: any): void {
-    const enabled = this.config.get<boolean>('enabled', true);
-    if (!enabled) {
-      return;
-    }
-
     if (message.type !== 'event' || message.event !== 'output') {
       return;
     }

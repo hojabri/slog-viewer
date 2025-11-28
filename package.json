@@ -27,18 +27,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "slog-viewer.toggle",
-        "title": "Slog Viewer: Toggle Formatting"
-      },
-      {
-        "command": "slog-viewer.enable",
-        "title": "Slog Viewer: Enable"
-      },
-      {
-        "command": "slog-viewer.disable",
-        "title": "Slog Viewer: Disable"
-      },
-      {
         "command": "slog-viewer.clearLogs",
         "title": "Slog Viewer: Clear Logs"
       }
@@ -61,20 +49,15 @@
     "configuration": {
       "title": "Slog Viewer",
       "properties": {
-        "slogViewer.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable automatic formatting of JSON logs"
-        },
         "slogViewer.collapseJSON": {
           "type": "boolean",
           "default": true,
           "description": "Show JSON collapsed by default (click to expand)"
         },
-        "slogViewer.showOriginal": {
+        "slogViewer.showRawJSON": {
           "type": "boolean",
           "default": false,
-          "description": "Show original JSON log alongside formatted output"
+          "description": "Show the raw JSON log below each formatted entry"
         },
         "slogViewer.autoScroll": {
           "type": "boolean",

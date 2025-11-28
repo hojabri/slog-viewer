@@ -2,6 +2,8 @@
 
 Beautiful structured log viewer for debugging. Automatically transforms JSON/logfmt logs into readable, interactive output with syntax highlighting, filtering, and search.
 
+![Slog Viewer Demo](slog-viewer.gif)
+
 ## Features
 
 - **Automatic Detection**: Detects and formats JSON/logfmt logs during debugging

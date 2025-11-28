@@ -8,7 +8,7 @@ const MAX_LOGS = 5000;
 let logs = [];
 let config = {
     collapseJSON: true,
-    showOriginal: false,
+    showRawJSON: false,
     autoScroll: true,
     theme: 'auto'
 };
@@ -115,6 +115,9 @@ function init() {
     // Initialize advanced filtering
     initContextMenu();
     initFilterBuilder();
+
+    // Apply initial theme (will be updated when config is received)
+    applyTheme(config.theme);
 
     // Notify extension that webview is ready
     vscode.postMessage({ type: 'ready' });
@@ -266,14 +269,14 @@ function createLogElement(log, index) {
 
     entry.appendChild(body);
 
-    // Original JSON (if enabled)
-    if (config.showOriginal) {
+    // Raw JSON (if enabled)
+    if (config.showRawJSON) {
         const original = document.createElement('div');
         original.className = 'log-original';
 
         const originalHeader = document.createElement('div');
         originalHeader.className = 'log-original-header';
-        originalHeader.textContent = 'Original:';
+        originalHeader.textContent = 'Raw JSON:';
 
         const originalContent = document.createElement('pre');
         originalContent.textContent = JSON.stringify({
@@ -536,6 +539,10 @@ function applyFilters(level, searchText) {
 // Update configuration
 function updateConfig(newConfig) {
     const wasAutoScrollEnabled = config.autoScroll;
+    const oldCollapseJSON = config.collapseJSON;
+    const oldShowRawJSON = config.showRawJSON;
+    const oldTheme = config.theme;
+
     config = { ...config, ...newConfig };
 
     // If user enables auto-scroll in settings, also activate runtime state
@@ -543,6 +550,57 @@ function updateConfig(newConfig) {
         autoScrollActive = true;
     }
     updateAutoScrollButton();
+
+    // Apply theme changes
+    if (oldTheme !== config.theme) {
+        applyTheme(config.theme);
+    }
+
+    // Re-render logs if collapseJSON or showRawJSON changed
+    if (oldCollapseJSON !== config.collapseJSON || oldShowRawJSON !== config.showRawJSON) {
+        rerenderAllLogs();
+    }
+}
+
+// Apply theme to document
+function applyTheme(theme) {
+    const root = document.documentElement;
+
+    if (theme === 'auto') {
+        // Remove any forced theme, let VSCode theme take over
+        root.removeAttribute('data-theme');
+    } else {
+        root.setAttribute('data-theme', theme);
+    }
+}
+
+// Re-render all log entries (used when display settings change)
+function rerenderAllLogs() {
+    // Clear the container
+    logContainer.innerHTML = '';
+
+    if (logs.length === 0) {
+        logContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>No logs yet</p>
+                <small>Start debugging to see formatted logs</small>
+            </div>
+        `;
+        return;
+    }
+
+    // Re-create all log elements
+    logs.forEach((log, index) => {
+        const logElement = createLogElement(log, index);
+        logContainer.appendChild(logElement);
+    });
+
+    // Re-apply filters
+    applyAllFilters();
+
+    // Restore no-results state if needed
+    updateNoResultsState();
 }
 
 // Debounce utility

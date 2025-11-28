@@ -61,7 +61,7 @@ export interface OpenFileMessage {
  */
 export interface WebviewConfig {
   collapseJSON: boolean;
-  showOriginal: boolean;
+  showRawJSON: boolean;
   autoScroll: boolean;
   theme: 'light' | 'dark' | 'auto';
 }

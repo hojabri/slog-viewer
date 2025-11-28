@@ -1,4 +1,4 @@
-/* VSCode theme variables */
+/* VSCode theme variables (auto theme - uses VSCode colors) */
 :root {
     --error-color: #ff5555;
     --warn-color: #ffb86c;
@@ -15,6 +15,78 @@
     --input-background: var(--vscode-input-background);
     --input-foreground: var(--vscode-input-foreground);
     --input-border: var(--vscode-input-border);
+}
+
+/* Explicit dark theme */
+:root[data-theme="dark"] {
+    --background: #1e1e1e;
+    --foreground: #d4d4d4;
+    --border-color: #3c3c3c;
+    --hover-background: rgba(255, 255, 255, 0.1);
+    --button-background: #0e639c;
+    --button-foreground: #ffffff;
+    --input-background: #3c3c3c;
+    --input-foreground: #cccccc;
+    --input-border: #3c3c3c;
+}
+
+/* Explicit light theme */
+:root[data-theme="light"] {
+    --background: #ffffff;
+    --foreground: #333333;
+    --border-color: #e0e0e0;
+    --hover-background: rgba(0, 0, 0, 0.05);
+    --button-background: #007acc;
+    --button-foreground: #ffffff;
+    --button-hover-background: #005a9e;
+    --button-secondary-background: #e0e0e0;
+    --button-secondary-foreground: #333333;
+    --input-background: #ffffff;
+    --input-foreground: #333333;
+    --input-border: #cecece;
+    --sidebar-background: #f3f3f3;
+    --menu-background: #ffffff;
+    --menu-foreground: #333333;
+    --menu-border: #e0e0e0;
+    --menu-selection-background: #e8e8e8;
+    --focus-border: #007acc;
+    --selection-background: rgba(0, 120, 212, 0.15);
+    --code-block-background: #f5f5f5;
+
+    --error-color: #d73a49;
+    --warn-color: #e36209;
+    --info-color: #0366d6;
+    --debug-color: #6a737d;
+    --trace-color: #6f42c1;
+
+    /* JSON syntax colors for light theme */
+    --json-key-color: #0451a5;
+    --json-string-color: #a31515;
+    --json-number-color: #098658;
+    --json-boolean-color: #0000ff;
+    --json-null-color: #d73a49;
+}
+
+/* Explicit dark theme */
+:root[data-theme="dark"] {
+    --sidebar-background: #252526;
+    --menu-background: #252526;
+    --menu-foreground: #cccccc;
+    --menu-border: #454545;
+    --menu-selection-background: #094771;
+    --focus-border: #007fd4;
+    --selection-background: rgba(38, 79, 120, 0.5);
+    --code-block-background: #1e1e1e;
+    --button-hover-background: #1177bb;
+    --button-secondary-background: #3a3d41;
+    --button-secondary-foreground: #cccccc;
+
+    /* JSON syntax colors for dark theme */
+    --json-key-color: #9cdcfe;
+    --json-string-color: #ce9178;
+    --json-number-color: #b5cea8;
+    --json-boolean-color: #569cd6;
+    --json-null-color: #f48771;
 }
 
 * {
@@ -105,7 +177,7 @@ body {
 
 .search-input:focus,
 .filter-select:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--focus-border, var(--vscode-focusBorder));
 }
 
 /* Log container */
@@ -288,23 +360,23 @@ body {
 }
 
 .json-key {
-    color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe);
+    color: var(--json-key-color, var(--vscode-symbolIcon-propertyForeground, #9cdcfe));
 }
 
 .json-string {
-    color: var(--vscode-debugTokenExpression-string, #ce9178);
+    color: var(--json-string-color, var(--vscode-debugTokenExpression-string, #ce9178));
 }
 
 .json-number {
-    color: var(--vscode-debugTokenExpression-number, #b5cea8);
+    color: var(--json-number-color, var(--vscode-debugTokenExpression-number, #b5cea8));
 }
 
 .json-boolean {
-    color: var(--vscode-debugTokenExpression-boolean, #569cd6);
+    color: var(--json-boolean-color, var(--vscode-debugTokenExpression-boolean, #569cd6));
 }
 
 .json-null {
-    color: var(--vscode-debugTokenExpression-error, #f48771);
+    color: var(--json-null-color, var(--vscode-debugTokenExpression-error, #f48771));
 }
 
 .json-punctuation {
@@ -328,7 +400,7 @@ body {
     margin-top: 4px;
     margin-left: 24px;
     padding: 8px;
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--code-block-background, var(--vscode-textCodeBlock-background));
     border-radius: 3px;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 11px;
@@ -377,7 +449,7 @@ body {
 .filter-area {
     padding: 8px 12px;
     border-bottom: 1px solid var(--border-color);
-    background: var(--vscode-sideBar-background, var(--background));
+    background: var(--sidebar-background, var(--vscode-sideBar-background, var(--background)));
     flex-shrink: 0;
 }
 
@@ -480,7 +552,7 @@ body {
 
 .add-filter-btn:hover {
     opacity: 1;
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--focus-border, var(--vscode-focusBorder));
 }
 
 .add-filter-btn .icon {
@@ -491,7 +563,7 @@ body {
 .filter-builder {
     margin-top: 8px;
     padding: 8px;
-    background: var(--vscode-input-background);
+    background: var(--input-background, var(--vscode-input-background));
     border-radius: 4px;
     border: 1px solid var(--border-color);
 }
@@ -529,12 +601,12 @@ body {
 
 .filter-builder .filter-input:focus,
 .filter-builder .filter-select:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--focus-border, var(--vscode-focusBorder));
 }
 
 .btn-primary {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
+    background: var(--button-background, var(--vscode-button-background));
+    color: var(--button-foreground, var(--vscode-button-foreground));
     border: none;
     padding: 4px 12px;
     border-radius: 2px;
@@ -543,12 +615,12 @@ body {
 }
 
 .btn-primary:hover {
-    background: var(--vscode-button-hoverBackground);
+    background: var(--button-hover-background, var(--vscode-button-hoverBackground));
 }
 
 .btn-secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+    background: var(--button-secondary-background, var(--vscode-button-secondaryBackground));
+    color: var(--button-secondary-foreground, var(--vscode-button-secondaryForeground));
     border: none;
     padding: 4px 12px;
     border-radius: 2px;
@@ -557,7 +629,8 @@ body {
 }
 
 .btn-secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
+    background: var(--button-secondary-background, var(--vscode-button-secondaryHoverBackground));
+    opacity: 0.9;
 }
 
 .btn-small {
@@ -569,10 +642,10 @@ body {
 .context-menu {
     position: fixed;
     z-index: 1000;
-    background: var(--vscode-menu-background, var(--background));
-    border: 1px solid var(--vscode-menu-border, var(--border-color));
+    background: var(--menu-background, var(--vscode-menu-background, var(--background)));
+    border: 1px solid var(--menu-border, var(--vscode-menu-border, var(--border-color)));
     border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     min-width: 220px;
     padding: 4px 0;
 }
@@ -588,11 +661,11 @@ body {
     padding: 6px 12px;
     cursor: pointer;
     font-size: 13px;
-    color: var(--vscode-menu-foreground, var(--foreground));
+    color: var(--menu-foreground, var(--vscode-menu-foreground, var(--foreground)));
 }
 
 .context-menu-item:hover {
-    background: var(--vscode-menu-selectionBackground, var(--hover-background));
+    background: var(--menu-selection-background, var(--vscode-menu-selectionBackground, var(--hover-background)));
 }
 
 .context-menu-item .menu-icon {
@@ -611,14 +684,14 @@ body {
 
 .context-menu-separator {
     height: 1px;
-    background: var(--vscode-menu-separatorBackground, var(--border-color));
+    background: var(--menu-border, var(--vscode-menu-separatorBackground, var(--border-color)));
     margin: 4px 0;
 }
 
 /* Highlight filterable elements on hover */
 .log-message.filterable:hover,
 .json-line.filterable:hover {
-    background: var(--vscode-editor-selectionBackground, rgba(255, 255, 255, 0.1));
+    background: var(--selection-background, var(--vscode-editor-selectionBackground, rgba(255, 255, 255, 0.1)));
     cursor: pointer;
     border-radius: 2px;
 }
