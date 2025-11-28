@@ -1,6 +1,6 @@
 {
   "name": "slog-viewer",
-  "displayName": "Slog Viewer",
+  "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
   "version": "1.0.0",
   "publisher": "hojabri",
