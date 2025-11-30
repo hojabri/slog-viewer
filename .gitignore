@@ -4,3 +4,6 @@ dist
 .vscode-test
 *.log
 .vscode/
+scripts/
+.vscodeignore
+test-app.js
