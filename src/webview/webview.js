@@ -78,7 +78,6 @@ function handleAutoScrollClick() {
 // Update auto-scroll button visual state
 function updateAutoScrollButton() {
     const btn = document.getElementById('autoScrollBtn');
-    const icon = btn.querySelector('.icon');
 
     if (!config.autoScroll) {
         btn.style.display = 'none';
@@ -90,13 +89,11 @@ function updateAutoScrollButton() {
     if (autoScrollActive) {
         btn.classList.remove('paused');
         btn.classList.add('active');
-        btn.title = 'Auto-scroll is active';
-        icon.textContent = '⏬';
+        btn.title = 'Auto-scroll enabled';
     } else {
         btn.classList.remove('active');
         btn.classList.add('paused');
         btn.title = 'Auto-scroll paused - click to resume';
-        icon.textContent = '⬇️';
     }
 }
 
@@ -104,7 +101,11 @@ function updateAutoScrollButton() {
 function init() {
     clearBtn.addEventListener('click', handleClear);
     levelFilter.addEventListener('change', handleFilter);
-    searchInput.addEventListener('input', debounce(handleSearch, 300));
+    searchInput.addEventListener('input', debounce(handleSearchWithClearBtn, 300));
+
+    // Search clear button
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    clearSearchBtn.addEventListener('click', handleClearSearch);
 
     // Auto-scroll button and scroll detection
     const autoScrollBtn = document.getElementById('autoScrollBtn');
@@ -121,6 +122,26 @@ function init() {
 
     // Notify extension that webview is ready
     vscode.postMessage({ type: 'ready' });
+}
+
+// Handle search with clear button visibility
+function handleSearchWithClearBtn() {
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    if (searchInput.value) {
+        clearSearchBtn.style.display = 'flex';
+    } else {
+        clearSearchBtn.style.display = 'none';
+    }
+    handleSearch();
+}
+
+// Handle clear search button
+function handleClearSearch() {
+    searchInput.value = '';
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    clearSearchBtn.style.display = 'none';
+    handleSearch();
+    searchInput.focus();
 }
 
 // Handle messages from extension
