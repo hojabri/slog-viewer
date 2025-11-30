@@ -2,6 +2,49 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.0.5] - 2025-01-30
+
+### Changed
+- Refactored toolbar and search components with SVG icons for better visual appearance
+- Enhanced styling and added clear search functionality
+- Removed development files from repository for cleaner distribution
+
+### Fixed
+- Fixed GitHub Actions detached HEAD error by specifying branch ref
+
+## [1.0.4] - 2025-01-29
+
+### Changed
+- CI/CD improvements for automated publishing
+
+## [1.0.3] - 2025-01-28
+
+### Changed
+- Updated GitHub Actions workflow to use Personal Access Token for improved permissions
+- Enhanced workflow to automatically bump version after publishing
+
+## [1.0.2] - 2025-01-27
+
+### Changed
+- Added workflow_dispatch trigger for manual publishing
+- Updated Node.js version in CI from 18 to 20
+
+## [1.0.1] - 2025-01-26
+
+### Added
+- Webview panel interface replacing output channel for better log viewing
+- Advanced filtering capabilities with filter builder
+- Context menu for log entries
+- Auto-scroll feature with toggle button
+- File opening functionality from log entries
+- Log management improvements
+
+### Changed
+- Removed command toggles (enable/disable) in favor of automatic display
+- Updated configuration properties for raw JSON display
+- Enhanced theme handling in webview
+- Improved README with demo image and usage instructions
+
 ## [1.0.0] - 2025-01-12
 
 ### Added
