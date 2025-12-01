@@ -14,10 +14,12 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
   private processedLines: Set<string> = new Set();
   private processedLinesQueue: string[] = []; // Track insertion order for eviction
   private hasShownWebview = false;
+  private sessionId: string;
 
   constructor(session: vscode.DebugSession, webviewProvider: SlogViewerWebviewProvider) {
     this.config = vscode.workspace.getConfiguration('slogViewer');
     this.webviewProvider = webviewProvider;
+    this.sessionId = session.id;
   }
 
   onDidSendMessage(message: any): void {
@@ -60,8 +62,8 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
       if (isJSONLog(line)) {
         const parsed = parseJSONLog(line);
         if (parsed) {
-          // Send parsed log to webview
-          this.webviewProvider.addLog(parsed);
+          // Send parsed log to webview with session ID
+          this.webviewProvider.addLog(this.sessionId, parsed);
 
           // Auto-show the webview on first log
           if (!this.hasShownWebview) {
@@ -80,7 +82,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
     this.processedLines.clear();
     this.processedLinesQueue = [];
     this.hasShownWebview = false;
-    this.webviewProvider.clearLogs();
+    // Note: We no longer clear logs here - session management handles this
   }
 
   onWillStopSession(): void {

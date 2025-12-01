@@ -1,17 +1,22 @@
 // Get VSCode API
 const vscode = acquireVsCodeApi();
 
-// Maximum number of logs to keep in memory and DOM
+// Maximum number of logs to keep in memory and DOM per session
 const MAX_LOGS = 5000;
 
 // State
-let logs = [];
 let config = {
     collapseJSON: true,
     showRawJSON: false,
     autoScroll: true,
     theme: 'auto'
 };
+
+// Session management
+// Each session stores: { info: SessionInfo, logs: ParsedLog[], filters: FilterState }
+// FilterState: { levelFilter: string, searchText: string, activeFilters: [], availableFields: Set }
+let sessions = new Map();
+let currentSessionId = null;
 
 // Runtime auto-scroll state (can be paused independently of config)
 let autoScrollActive = true;
@@ -107,6 +112,10 @@ function init() {
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     clearSearchBtn.addEventListener('click', handleClearSearch);
 
+    // Session selector
+    const sessionSelect = document.getElementById('sessionSelect');
+    sessionSelect.addEventListener('change', handleSessionChange);
+
     // Auto-scroll button and scroll detection
     const autoScrollBtn = document.getElementById('autoScrollBtn');
     autoScrollBtn.addEventListener('click', handleAutoScrollClick);
@@ -150,60 +159,306 @@ window.addEventListener('message', event => {
 
     switch (message.type) {
         case 'addLog':
-            addLog(message.log);
+            addLogToSession(message.sessionId, message.log);
             break;
         case 'clearLogs':
-            clearLogs();
+            clearCurrentSessionLogs();
             break;
         case 'updateConfig':
             updateConfig(message.config);
             break;
+        case 'setSessions':
+            updateSessions(message.sessions, message.currentSessionId);
+            break;
     }
 });
 
-// Add a log entry
-function addLog(log) {
-    logs.push(log);
+// ============================================
+// SESSION MANAGEMENT FUNCTIONS
+// ============================================
 
-    // Track fields for filter dropdown
-    trackFieldsFromLog(log);
+// Create default filter state for a new session
+function createDefaultFilterState() {
+    return {
+        levelFilter: 'all',
+        searchText: '',
+        activeFilters: [],
+        availableFields: new Set(['message', 'level']),
+        filterIdCounter: 0
+    };
+}
 
-    // Hide empty state
-    const emptyState = logContainer.querySelector('.empty-state');
-    if (emptyState) {
-        emptyState.remove();
-    }
-
-    // Create and append log element
-    const logElement = createLogElement(log, logs.length - 1);
-    logContainer.appendChild(logElement);
-
-    // Apply filters to newly added log
-    if (!logMatchesAdvancedFilters(log) ||
-        (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
-        (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
-                                JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase())))) {
-        logElement.classList.add('hidden');
-    }
-
-    // Remove old logs if we exceed the limit
-    while (logs.length > MAX_LOGS) {
-        logs.shift();
-        const firstEntry = logContainer.querySelector('.log-entry');
-        if (firstEntry) {
-            firstEntry.remove();
+// Update sessions from extension
+function updateSessions(sessionInfos, newCurrentSessionId) {
+    // Update session info (but keep existing logs and filters)
+    for (const info of sessionInfos) {
+        if (!sessions.has(info.id)) {
+            sessions.set(info.id, {
+                info,
+                logs: [],
+                filters: createDefaultFilterState()
+            });
+        } else {
+            sessions.get(info.id).info = info;
         }
     }
 
-    // Re-index remaining entries after eviction
-    if (logs.length === MAX_LOGS) {
-        reindexLogEntries();
+    // Remove sessions that no longer exist
+    const validIds = new Set(sessionInfos.map(s => s.id));
+    for (const id of sessions.keys()) {
+        if (!validIds.has(id)) {
+            sessions.delete(id);
+        }
     }
 
-    // Smart auto-scroll: only scroll if enabled AND active
-    if (config.autoScroll && autoScrollActive) {
+    // Update current session
+    const oldSessionId = currentSessionId;
+
+    // Save current session's filter state before switching
+    if (oldSessionId && sessions.has(oldSessionId)) {
+        saveCurrentFilterState(oldSessionId);
+    }
+
+    currentSessionId = newCurrentSessionId;
+
+    // Update session selector UI
+    updateSessionSelector();
+
+    // Re-render logs if session changed
+    if (oldSessionId !== currentSessionId) {
+        // Restore filter state for new session
+        if (currentSessionId && sessions.has(currentSessionId)) {
+            restoreFilterState(currentSessionId);
+        }
+        renderCurrentSessionLogs();
+    }
+}
+
+// Save current filter state to session
+function saveCurrentFilterState(sessionId) {
+    const session = sessions.get(sessionId);
+    if (!session) return;
+
+    session.filters = {
+        levelFilter: levelFilter.value,
+        searchText: searchInput.value,
+        activeFilters: [...activeFilters],
+        availableFields: new Set(availableFields),
+        filterIdCounter: filterIdCounter
+    };
+}
+
+// Restore filter state from session
+function restoreFilterState(sessionId) {
+    const session = sessions.get(sessionId);
+    if (!session || !session.filters) return;
+
+    const filters = session.filters;
+
+    // Restore UI state
+    levelFilter.value = filters.levelFilter;
+    searchInput.value = filters.searchText;
+
+    // Update search clear button visibility
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    clearSearchBtn.style.display = filters.searchText ? 'flex' : 'none';
+
+    // Restore advanced filter state
+    activeFilters = [...filters.activeFilters];
+    availableFields = new Set(filters.availableFields);
+    filterIdCounter = filters.filterIdCounter;
+
+    // Re-render filter chips
+    renderFilterChips();
+}
+
+// Update the session selector dropdown
+function updateSessionSelector() {
+    const selector = document.getElementById('sessionSelector');
+    const divider = document.getElementById('sessionDivider');
+    const select = document.getElementById('sessionSelect');
+
+    if (!selector || !select) return;
+
+    // Show/hide based on session count
+    const showSelector = sessions.size > 1;
+    selector.classList.toggle('hidden', !showSelector);
+    divider.classList.toggle('hidden', !showSelector);
+
+    if (!showSelector) return;
+
+    // Populate dropdown
+    select.innerHTML = '';
+    for (const [id, session] of sessions) {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = session.info.isActive
+            ? session.info.name
+            : `${session.info.name} (ended)`;
+        if (!session.info.isActive) {
+            option.classList.add('ended');
+        }
+        if (id === currentSessionId) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+}
+
+// Handle session selection change
+function handleSessionChange() {
+    const select = document.getElementById('sessionSelect');
+    if (!select) return;
+
+    const newSessionId = select.value;
+    if (newSessionId !== currentSessionId) {
+        // Notify extension of session change
+        vscode.postMessage({
+            type: 'selectSession',
+            sessionId: newSessionId
+        });
+    }
+}
+
+// Render logs for the current session
+function renderCurrentSessionLogs() {
+    const session = sessions.get(currentSessionId);
+    const logs = session ? session.logs : [];
+
+    // Clear container
+    logContainer.innerHTML = '';
+
+    if (logs.length === 0) {
+        logContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>No logs yet</p>
+                <small>Start debugging to see formatted logs</small>
+            </div>
+        `;
+        return;
+    }
+
+    // Re-create all log elements
+    logs.forEach((log, index) => {
+        const logElement = createLogElement(log, index);
+        logContainer.appendChild(logElement);
+    });
+
+    // Re-apply filters
+    applyAllFilters();
+
+    // Reset auto-scroll state
+    autoScrollActive = true;
+    updateAutoScrollButton();
+
+    // Scroll to bottom
+    if (config.autoScroll) {
         logContainer.scrollTop = logContainer.scrollHeight;
     }
+}
+
+// Get logs for the current session
+function getCurrentSessionLogs() {
+    const session = sessions.get(currentSessionId);
+    return session ? session.logs : [];
+}
+
+// Add a log entry to a specific session
+function addLogToSession(sessionId, log) {
+    // Ensure session exists
+    if (!sessions.has(sessionId)) {
+        sessions.set(sessionId, {
+            info: { id: sessionId, name: 'Unknown', isActive: true },
+            logs: [],
+            filters: createDefaultFilterState()
+        });
+    }
+
+    const session = sessions.get(sessionId);
+    session.logs.push(log);
+
+    // Track fields for filter dropdown (for the session's available fields)
+    if (log.otherFields) {
+        Object.keys(log.otherFields).forEach(key => {
+            session.filters.availableFields.add(key);
+            // Also update global if this is current session
+            if (sessionId === currentSessionId) {
+                availableFields.add(key);
+            }
+        });
+    }
+
+    // Only update UI if this is the current session
+    if (sessionId === currentSessionId) {
+        // Hide empty state
+        const emptyState = logContainer.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        // Create and append log element
+        const logElement = createLogElement(log, session.logs.length - 1);
+        logContainer.appendChild(logElement);
+
+        // Apply filters to newly added log
+        if (!logMatchesAdvancedFilters(log) ||
+            (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
+            (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
+                                    JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase())))) {
+            logElement.classList.add('hidden');
+        }
+
+        // Smart auto-scroll: only scroll if enabled AND active
+        if (config.autoScroll && autoScrollActive) {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    }
+
+    // Remove old logs if we exceed the limit (for this session)
+    while (session.logs.length > MAX_LOGS) {
+        session.logs.shift();
+        if (sessionId === currentSessionId) {
+            const firstEntry = logContainer.querySelector('.log-entry');
+            if (firstEntry) {
+                firstEntry.remove();
+            }
+            reindexLogEntries();
+        }
+    }
+}
+
+// Clear logs for current session only
+function clearCurrentSessionLogs() {
+    const session = sessions.get(currentSessionId);
+    if (session) {
+        session.logs = [];
+        // Reset this session's filter state
+        session.filters = createDefaultFilterState();
+    }
+
+    // Reset global filter state (for current session)
+    activeFilters = [];
+    availableFields = new Set(['message', 'level']);
+    filterIdCounter = 0;
+    levelFilter.value = 'all';
+    searchInput.value = '';
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    clearSearchBtn.style.display = 'none';
+
+    renderFilterChips();
+
+    logContainer.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>No logs yet</p>
+            <small>Start debugging to see formatted logs</small>
+        </div>
+    `;
+
+    // Reset auto-scroll state
+    autoScrollActive = true;
+    updateAutoScrollButton();
 }
 
 // Re-index log entries after old ones are removed
@@ -478,29 +733,10 @@ function formatTimestamp(timestamp) {
 
 // Handle clear button
 function handleClear() {
-    clearLogs();
+    clearCurrentSessionLogs();
     vscode.postMessage({ type: 'clearLogs' });
 }
 
-// Clear all logs
-function clearLogs() {
-    logs = [];
-    // Reset advanced filters
-    activeFilters = [];
-    availableFields = new Set(['message', 'level']);
-    renderFilterChips();
-
-    logContainer.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">📋</div>
-            <p>No logs yet</p>
-            <small>Start debugging to see formatted logs</small>
-        </div>
-    `;
-    // Reset auto-scroll state
-    autoScrollActive = true;
-    updateAutoScrollButton();
-}
 
 // Handle level filter
 function handleFilter() {
@@ -519,6 +755,7 @@ function handleSearch() {
 // Apply filters (level, search, and advanced filters)
 function applyFilters(level, searchText) {
     const logEntries = logContainer.querySelectorAll('.log-entry');
+    const logs = getCurrentSessionLogs();
 
     logEntries.forEach(entry => {
         const logLevel = entry.dataset.level;
@@ -597,6 +834,8 @@ function applyTheme(theme) {
 
 // Re-render all log entries (used when display settings change)
 function rerenderAllLogs() {
+    const logs = getCurrentSessionLogs();
+
     // Clear the container
     logContainer.innerHTML = '';
 
@@ -856,6 +1095,7 @@ function trackFieldsFromLog(log) {
 function updateNoResultsState() {
     const logEntries = logContainer.querySelectorAll('.log-entry');
     const visibleCount = Array.from(logEntries).filter(e => !e.classList.contains('hidden')).length;
+    const logs = getCurrentSessionLogs();
     const hasLogs = logs.length > 0;
 
     let noResults = logContainer.querySelector('.no-filter-results');

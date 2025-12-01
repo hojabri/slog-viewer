@@ -2,6 +2,20 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.1.0] - 2025-12-01
+
+### Added
+- **Multi-session debug support**: Debug multiple services simultaneously in the same VSCode window
+- Session selector dropdown that appears automatically when multiple debug sessions are active
+- Per-session log storage: logs from each debug session are kept separately
+- Per-session filter state: each session maintains its own level filter, search text, and advanced filters
+- Background log collection: logs continue accumulating in non-active sessions while viewing another session
+
+### Changed
+- Logs are no longer cleared when starting a new debug session
+- Clear button now only clears the current session's logs
+- Session selector shows "(ended)" suffix for terminated debug sessions
+
 ## [1.0.5] - 2025-01-30
 
 ### Changed

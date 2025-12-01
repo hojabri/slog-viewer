@@ -30,10 +30,17 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.debug.registerDebugAdapterTrackerFactory('*', trackerFactory)
   );
 
-  // Show Slog Viewer when debug session starts
+  // Track debug session lifecycle
   context.subscriptions.push(
-    vscode.debug.onDidStartDebugSession(() => {
+    vscode.debug.onDidStartDebugSession((session) => {
+      webviewProvider.addSession(session);
       webviewProvider.show();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.debug.onDidTerminateDebugSession((session) => {
+      webviewProvider.endSession(session.id);
     })
   );
 

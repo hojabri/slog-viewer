@@ -6,16 +6,25 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ParsedLog } from './logFormatter';
-import { ExtensionMessage, WebviewConfig } from './messageTypes';
+import { ExtensionMessage, WebviewConfig, SessionInfo } from './messageTypes';
 
 // Maximum number of logs to buffer before webview is ready
 const MAX_PENDING_LOGS = 500;
 
+// Internal session data including logs
+interface SessionData extends SessionInfo {
+  logs: ParsedLog[];
+}
+
 export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'slog-viewer.logView';
   private view?: vscode.WebviewView;
-  private pendingLogs: ParsedLog[] = [];
+  private pendingLogs: Array<{ sessionId: string; log: ParsedLog }> = [];
   private isWebviewReady = false;
+
+  // Session management
+  private sessions: Map<string, SessionData> = new Map();
+  private currentSessionId: string | null = null;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -40,11 +49,16 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
           // Webview is ready, send initial config
           this.isWebviewReady = true;
           this.updateConfig();
+          // Send session info
+          this.sendSessionsToWebview();
           // Send any pending logs that arrived before webview was ready
           this.flushPendingLogs();
           break;
         case 'openFile':
           await this.openFile(message.filePath, message.line);
+          break;
+        case 'selectSession':
+          this.setCurrentSession(message.sessionId);
           break;
       }
     });
@@ -63,10 +77,11 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    for (const log of this.pendingLogs) {
+    for (const { sessionId, log } of this.pendingLogs) {
       const message: ExtensionMessage = {
         type: 'addLog',
-        log: log
+        log: log,
+        sessionId: sessionId
       };
       this.view.webview.postMessage(message);
     }
@@ -74,12 +89,18 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Add a log entry to the webview
+   * Add a log entry to the webview for a specific session
    */
-  public addLog(log: ParsedLog): void {
+  public addLog(sessionId: string, log: ParsedLog): void {
+    // Store log in the session data
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.logs.push(log);
+    }
+
     // Buffer logs if webview isn't ready yet
     if (!this.view || !this.isWebviewReady) {
-      this.pendingLogs.push(log);
+      this.pendingLogs.push({ sessionId, log });
       // Evict oldest logs if buffer is full
       while (this.pendingLogs.length > MAX_PENDING_LOGS) {
         this.pendingLogs.shift();
@@ -89,18 +110,28 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
 
     const message: ExtensionMessage = {
       type: 'addLog',
-      log: log
+      log: log,
+      sessionId: sessionId
     };
 
     this.view.webview.postMessage(message);
   }
 
   /**
-   * Clear all logs in the webview
+   * Clear logs for the current session in the webview
    */
   public clearLogs(): void {
-    // Always clear pending logs
-    this.pendingLogs = [];
+    // Clear pending logs for current session
+    if (this.currentSessionId) {
+      this.pendingLogs = this.pendingLogs.filter(p => p.sessionId !== this.currentSessionId);
+      // Clear logs in session data
+      const session = this.sessions.get(this.currentSessionId);
+      if (session) {
+        session.logs = [];
+      }
+    } else {
+      this.pendingLogs = [];
+    }
 
     if (!this.view) {
       return;
@@ -108,6 +139,75 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
 
     const message: ExtensionMessage = {
       type: 'clearLogs'
+    };
+
+    this.view.webview.postMessage(message);
+  }
+
+  /**
+   * Add a new debug session
+   */
+  public addSession(session: vscode.DebugSession): void {
+    const sessionData: SessionData = {
+      id: session.id,
+      name: session.name,
+      isActive: true,
+      logs: []
+    };
+    this.sessions.set(session.id, sessionData);
+
+    // Auto-select the new session
+    this.currentSessionId = session.id;
+
+    this.sendSessionsToWebview();
+  }
+
+  /**
+   * Mark a session as ended (keep logs for viewing)
+   */
+  public endSession(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.isActive = false;
+      this.sendSessionsToWebview();
+    }
+  }
+
+  /**
+   * Set the current session being viewed
+   */
+  public setCurrentSession(sessionId: string): void {
+    if (this.sessions.has(sessionId)) {
+      this.currentSessionId = sessionId;
+      this.sendSessionsToWebview();
+    }
+  }
+
+  /**
+   * Get the current session ID
+   */
+  public getCurrentSessionId(): string | null {
+    return this.currentSessionId;
+  }
+
+  /**
+   * Send session list to webview
+   */
+  private sendSessionsToWebview(): void {
+    if (!this.view || !this.isWebviewReady) {
+      return;
+    }
+
+    const sessionInfos: SessionInfo[] = Array.from(this.sessions.values()).map(s => ({
+      id: s.id,
+      name: s.name,
+      isActive: s.isActive
+    }));
+
+    const message: ExtensionMessage = {
+      type: 'setSessions',
+      sessions: sessionInfos,
+      currentSessionId: this.currentSessionId
     };
 
     this.view.webview.postMessage(message);

@@ -5,16 +5,33 @@
 import { ParsedLog } from './logFormatter';
 
 /**
+ * Session information for multi-session support
+ */
+export interface SessionInfo {
+  id: string;           // vscode.DebugSession.id
+  name: string;         // vscode.DebugSession.name (e.g., "Launch server.js")
+  isActive: boolean;    // Whether session is still running
+}
+
+/**
  * Messages sent from extension to webview
  */
 export type ExtensionMessage =
   | AddLogMessage
   | ClearLogsMessage
-  | UpdateConfigMessage;
+  | UpdateConfigMessage
+  | SetSessionsMessage;
 
 export interface AddLogMessage {
   type: 'addLog';
   log: ParsedLog;
+  sessionId: string;
+}
+
+export interface SetSessionsMessage {
+  type: 'setSessions';
+  sessions: SessionInfo[];
+  currentSessionId: string | null;
 }
 
 export interface ClearLogsMessage {
@@ -33,7 +50,8 @@ export type WebviewMessage =
   | ReadyMessage
   | FilterChangeMessage
   | CopyLogMessage
-  | OpenFileMessage;
+  | OpenFileMessage
+  | SelectSessionMessage;
 
 export interface ReadyMessage {
   type: 'ready';
@@ -54,6 +72,11 @@ export interface OpenFileMessage {
   type: 'openFile';
   filePath: string;
   line?: number;
+}
+
+export interface SelectSessionMessage {
+  type: 'selectSession';
+  sessionId: string;
 }
 
 /**
