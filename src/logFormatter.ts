@@ -34,7 +34,9 @@ function formatJSONWithMarkers(obj: Record<string, any>, indent: number = 2): st
     // Format value based on type
     let valueStr: string;
     if (typeof value === 'string') {
-      valueStr = `"${value}"`;
+      // Escape backslashes and quotes for valid JSON output
+      const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      valueStr = `"${escaped}"`;
     } else if (typeof value === 'number') {
       valueStr = `${value}`;
     } else if (typeof value === 'boolean') {
@@ -54,18 +56,110 @@ function formatJSONWithMarkers(obj: Record<string, any>, indent: number = 2): st
 }
 
 /**
+ * Parse a quoted string value, handling escape sequences
+ * Returns the unescaped string and the position after the closing quote
+ */
+function parseQuotedValue(line: string, startPos: number): { value: string; endPos: number } | null {
+  let result = '';
+  let i = startPos;
+
+  while (i < line.length) {
+    const char = line[i];
+
+    if (char === '\\' && i + 1 < line.length) {
+      // Handle escape sequences
+      const nextChar = line[i + 1];
+      if (nextChar === '"') {
+        result += '"';
+        i += 2;
+      } else if (nextChar === '\\') {
+        result += '\\';
+        i += 2;
+      } else if (nextChar === 'n') {
+        result += '\n';
+        i += 2;
+      } else if (nextChar === 't') {
+        result += '\t';
+        i += 2;
+      } else if (nextChar === 'r') {
+        result += '\r';
+        i += 2;
+      } else {
+        // Unknown escape, keep both characters
+        result += char + nextChar;
+        i += 2;
+      }
+    } else if (char === '"') {
+      // End of quoted string
+      return { value: result, endPos: i + 1 };
+    } else {
+      result += char;
+      i++;
+    }
+  }
+
+  // No closing quote found
+  return null;
+}
+
+/**
  * Parse logfmt format (key=value pairs) into an object
  */
 function parseLogfmt(line: string): Record<string, any> | null {
   try {
     const obj: Record<string, any> = {};
-    // Match key="value" or key=value patterns
-    const regex = /(\w+)=(?:"([^"]*)"|(\S+))/g;
-    let match;
+    let i = 0;
 
-    while ((match = regex.exec(line)) !== null) {
-      const key = match[1];
-      const value = match[2] || match[3]; // Quoted or unquoted value
+    while (i < line.length) {
+      // Skip whitespace
+      while (i < line.length && /\s/.test(line[i])) {
+        i++;
+      }
+
+      if (i >= line.length) break;
+
+      // Parse key (word characters)
+      const keyStart = i;
+      while (i < line.length && /\w/.test(line[i])) {
+        i++;
+      }
+
+      if (i === keyStart) {
+        // No key found, skip this character
+        i++;
+        continue;
+      }
+
+      const key = line.slice(keyStart, i);
+
+      // Expect '='
+      if (i >= line.length || line[i] !== '=') {
+        continue;
+      }
+      i++; // Skip '='
+
+      let value: string;
+
+      if (i < line.length && line[i] === '"') {
+        // Quoted value - parse with escape handling
+        i++; // Skip opening quote
+        const parsed = parseQuotedValue(line, i);
+        if (parsed) {
+          value = parsed.value;
+          i = parsed.endPos;
+        } else {
+          // Malformed quoted string, take rest of line
+          value = line.slice(i);
+          i = line.length;
+        }
+      } else {
+        // Unquoted value - read until whitespace
+        const valueStart = i;
+        while (i < line.length && !/\s/.test(line[i])) {
+          i++;
+        }
+        value = line.slice(valueStart, i);
+      }
 
       // Try to parse numbers and booleans
       if (value === 'true') {
