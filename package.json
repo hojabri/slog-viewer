@@ -2,7 +2,7 @@
   "name": "slog-viewer",
   "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "publisher": "hojabri",
   "icon": "icon.png",
   "repository": {
@@ -95,14 +95,18 @@
     "compile": "tsc -p ./ && npm run copy-webview",
     "copy-webview": "mkdir -p dist/webview && cp src/webview/*.html src/webview/*.css src/webview/*.js dist/webview/",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "jest"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.24",
     "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
   },
   "license": "MIT"
