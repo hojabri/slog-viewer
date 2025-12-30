@@ -7,3 +7,4 @@ dist
 scripts/
 .vscodeignore
 test-app.js
+CLAUDE.md
