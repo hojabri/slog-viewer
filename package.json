@@ -35,8 +35,17 @@
         "title": "Slog Viewer: Clear Logs"
       }
     ],
-    "views": {
+    "viewsContainers": {
       "panel": [
+        {
+          "id": "slog-viewer-panel",
+          "title": "Slog Viewer",
+          "icon": "icon.png"
+        }
+      ]
+    },
+    "views": {
+      "slog-viewer-panel": [
         {
           "id": "slog-viewer.logView",
           "name": "Slog Viewer",
