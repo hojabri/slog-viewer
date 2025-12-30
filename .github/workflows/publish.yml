@@ -20,16 +20,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Install dependencies
         run: npm install
-
-      - name: Bump version
-        run: npm version patch --no-git-tag-version
 
       - name: Compile
         run: npm run compile
@@ -39,9 +31,3 @@ jobs:
 
       - name: Publish to Open VSX
         run: npx ovsx publish -p ${{ secrets.OVSX_PAT }}
-
-      - name: Commit version bump
-        run: |
-          git add package.json
-          git commit -m "Bump version to $(node -p "require('./package.json').version")"
-          git push
