@@ -229,7 +229,7 @@ export function parseJSONLog(line: string): ParsedLog | null {
 
     // Extract common fields (check various common field names)
     const timestamp = obj.time || obj.timestamp || obj.ts || obj['@timestamp'] || obj.datetime;
-    let level = obj.level || obj.severity || obj.lvl || obj.loglevel;
+    let level = obj.level || obj.severity || obj.lvl || obj.loglevel || obj['log.level'];
     const message = obj.message || obj.msg || obj.text;
 
     // Normalize log level to standard values
@@ -267,6 +267,7 @@ export function parseJSONLog(line: string): ParsedLog | null {
         keyLower !== 'severity' &&
         keyLower !== 'lvl' &&
         keyLower !== 'loglevel' &&
+        keyLower !== 'log.level' &&
         keyLower !== 'message' &&
         keyLower !== 'msg' &&
         keyLower !== 'text'
