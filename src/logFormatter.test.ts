@@ -45,6 +45,71 @@ describe('logFormatter', () => {
     });
   });
 
+  describe('parseJSONLog - ECS format', () => {
+    it('should parse ECS log with log.level field', () => {
+      const input = '{"@timestamp":"2024-01-01T12:00:00.000Z","log.level":"DEBUG","message":"Processing request"}';
+      const result = parseJSONLog(input);
+      expect(result).not.toBeNull();
+      expect(result?.level).toBe('DEBUG');
+      expect(result?.message).toBe('Processing request');
+      expect(result?.timestamp).toBe('2024-01-01T12:00:00.000Z');
+    });
+
+    it('should exclude log.level from otherFields', () => {
+      const input = '{"@timestamp":"2024-01-01T12:00:00.000Z","log.level":"INFO","message":"test"}';
+      const result = parseJSONLog(input);
+      expect(result).not.toBeNull();
+      expect(result?.otherFields['log.level']).toBeUndefined();
+    });
+
+    it('should parse ECS log with all common ECS fields', () => {
+      const input = JSON.stringify({
+        "@timestamp": "2024-01-01T12:00:00.000Z",
+        "log.level": "DEBUG",
+        "message": "Stopping beans in phase 2147483647",
+        "process.pid": 23633,
+        "process.thread.name": "SpringApplicationShutdownHook",
+        "log.logger": "org.springframework.context.support.DefaultLifecycleProcessor",
+        "ecs.version": "8.11"
+      });
+      const result = parseJSONLog(input);
+      expect(result).not.toBeNull();
+      expect(result?.timestamp).toBe('2024-01-01T12:00:00.000Z');
+      expect(result?.level).toBe('DEBUG');
+      expect(result?.message).toBe('Stopping beans in phase 2147483647');
+      expect(result?.otherFields['process.pid']).toBe(23633);
+      expect(result?.otherFields['process.thread.name']).toBe('SpringApplicationShutdownHook');
+      expect(result?.otherFields['log.logger']).toBe('org.springframework.context.support.DefaultLifecycleProcessor');
+      expect(result?.otherFields['ecs.version']).toBe('8.11');
+    });
+
+    it('should parse ECS log without message field', () => {
+      const input = JSON.stringify({
+        "log.level": "DEBUG",
+        "process.pid": 23633,
+        "process.thread.name": "SpringApplicationShutdownHook",
+        "log.logger": "org.springframework.context.support.DefaultLifecycleProcessor",
+        "ecs.version": "8.11"
+      });
+      const result = parseJSONLog(input);
+      expect(result).not.toBeNull();
+      expect(result?.level).toBe('DEBUG');
+      expect(result?.message).toBeUndefined();
+    });
+
+    it('should detect ECS JSON log with isJSONLog', () => {
+      const input = '{"log.level":"DEBUG","message":"test","@timestamp":"2024-01-01T12:00:00.000Z"}';
+      expect(isJSONLog(input)).toBe(true);
+    });
+
+    it('should prefer standard level field over log.level', () => {
+      const input = '{"level":"ERROR","log.level":"DEBUG","message":"test"}';
+      const result = parseJSONLog(input);
+      expect(result).not.toBeNull();
+      expect(result?.level).toBe('ERROR');
+    });
+  });
+
   describe('parseJSONLog - logfmt format', () => {
     it('should parse basic logfmt log', () => {
       const result = parseJSONLog('time=2024-01-01 level=info msg=hello');
