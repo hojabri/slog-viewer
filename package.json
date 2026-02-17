@@ -2,7 +2,7 @@
   "name": "slog-viewer",
   "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "publisher": "hojabri",
   "icon": "icon.png",
   "repository": {
@@ -22,10 +22,12 @@
     "slog",
     "debug",
     "console",
-    "structured-logging"
+    "structured-logging",
+    "tasks"
   ],
   "activationEvents": [
-    "onDebug"
+    "onDebug",
+    "onTaskType:slogViewer"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -56,7 +58,36 @@
     "viewsWelcome": [
       {
         "view": "slog-viewer.logView",
-        "contents": "No logs yet.\n\nStart debugging to see formatted structured logs.\n\n[Start Debugging](command:workbench.action.debug.start)"
+        "contents": "No logs yet.\n\nStart debugging or run a slogViewer task to see formatted structured logs.\n\n[Start Debugging](command:workbench.action.debug.start)"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "slogViewer",
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The command to execute"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Command arguments"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory"
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables"
+          }
+        }
       }
     ],
     "configuration": {

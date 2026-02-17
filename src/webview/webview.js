@@ -333,7 +333,7 @@ function renderCurrentSessionLogs() {
             <div class="empty-state">
                 <div class="empty-icon">📋</div>
                 <p>No logs yet</p>
-                <small>Start debugging to see formatted logs</small>
+                <small>Start debugging or run a slogViewer task to see formatted logs</small>
             </div>
         `;
         return;
@@ -844,7 +844,7 @@ function rerenderAllLogs() {
             <div class="empty-state">
                 <div class="empty-icon">📋</div>
                 <p>No logs yet</p>
-                <small>Start debugging to see formatted logs</small>
+                <small>Start debugging or run a slogViewer task to see formatted logs</small>
             </div>
         `;
         return;

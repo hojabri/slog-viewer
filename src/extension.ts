@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SlogDebugAdapterTrackerFactory } from './debugAdapterWrapper';
 import { SlogViewerWebviewProvider } from './webviewPanel';
+import { SlogViewerTaskProvider } from './taskOutputTracker';
 
 let webviewProvider: SlogViewerWebviewProvider;
 
@@ -28,6 +29,12 @@ export function activate(context: vscode.ExtensionContext) {
   const trackerFactory = new SlogDebugAdapterTrackerFactory(webviewProvider);
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterTrackerFactory('*', trackerFactory)
+  );
+
+  // Register Task Provider for slogViewer tasks
+  const taskProvider = new SlogViewerTaskProvider(webviewProvider);
+  context.subscriptions.push(
+    vscode.tasks.registerTaskProvider(SlogViewerTaskProvider.taskType, taskProvider)
   );
 
   // Track debug session lifecycle

@@ -163,6 +163,16 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Add a new task session (not tied to a debug session)
+   */
+  public addTaskSession(id: string, name: string): void {
+    const sessionData: SessionData = { id, name, isActive: true, logs: [] };
+    this.sessions.set(id, sessionData);
+    this.currentSessionId = id;
+    this.sendSessionsToWebview();
+  }
+
+  /**
    * Mark a session as ended (keep logs for viewing)
    */
   public endSession(sessionId: string): void {
