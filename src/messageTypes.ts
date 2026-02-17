@@ -5,11 +5,11 @@
 import { ParsedLog } from './logFormatter';
 
 /**
- * Session information for multi-session support
+ * Session information for multi-session support (debug sessions and task sessions)
  */
 export interface SessionInfo {
-  id: string;           // vscode.DebugSession.id
-  name: string;         // vscode.DebugSession.name (e.g., "Launch server.js")
+  id: string;           // Session identifier (debug session ID or task-generated ID)
+  name: string;         // Display name (e.g., "Launch server.js" or "Task: Run Server")
   isActive: boolean;    // Whether session is still running
 }
 
