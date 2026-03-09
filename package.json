@@ -52,6 +52,18 @@
         "title": "Watch Log File (Live Tail)",
         "category": "Slog Viewer",
         "icon": "$(eye)"
+      },
+      {
+        "command": "slog-viewer.copyLogs",
+        "title": "Copy Logs to Clipboard",
+        "category": "Slog Viewer",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "slog-viewer.saveLogs",
+        "title": "Save Logs to File",
+        "category": "Slog Viewer",
+        "icon": "$(save-as)"
       }
     ],
     "menus": {
@@ -70,6 +82,18 @@
           "command": "slog-viewer.clearLogs",
           "when": "view == slog-viewer.logView",
           "group": "navigation"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "slog-viewer.copyLogs",
+          "when": "webviewId == 'slog-viewer.logView'",
+          "group": "export@1"
+        },
+        {
+          "command": "slog-viewer.saveLogs",
+          "when": "webviewId == 'slog-viewer.logView'",
+          "group": "export@2"
         }
       ],
       "explorer/context": [

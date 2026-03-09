@@ -76,6 +76,18 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('slog-viewer.copyLogs', () => {
+      webviewProvider.showExportQuickPick('clipboard');
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('slog-viewer.saveLogs', () => {
+      webviewProvider.showExportQuickPick('file');
+    })
+  );
+
   // Watch for configuration changes
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {

@@ -63,6 +63,12 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
         case 'selectSession':
           this.setCurrentSession(message.sessionId);
           break;
+        case 'requestExport':
+          await this.showExportQuickPick();
+          break;
+        case 'formattedLogs':
+          await this.handleFormattedLogs(message);
+          break;
       }
     });
 
@@ -288,6 +294,80 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   public show(): void {
     // Use VSCode command to focus the view - this works even if view isn't resolved yet
     vscode.commands.executeCommand(`${SlogViewerWebviewProvider.viewType}.focus`);
+  }
+
+  /**
+   * Show QuickPick for export format + destination selection.
+   * Called from toolbar button (via requestExport message) or from registered commands.
+   */
+  public async showExportQuickPick(destination?: 'clipboard' | 'file'): Promise<void> {
+    const items = destination
+      ? [
+          { label: '$(json) JSON', format: 'json' as const },
+          { label: '$(output) Text', format: 'text' as const },
+          { label: '$(table) CSV', format: 'csv' as const },
+        ]
+      : [
+          { label: '$(clippy) Copy as JSON', format: 'json' as const, dest: 'clipboard' as const },
+          { label: '$(clippy) Copy as Text', format: 'text' as const, dest: 'clipboard' as const },
+          { label: '$(clippy) Copy as CSV', format: 'csv' as const, dest: 'clipboard' as const },
+          { label: '$(file-add) Save as JSON', format: 'json' as const, dest: 'file' as const },
+          { label: '$(file-add) Save as Text', format: 'text' as const, dest: 'file' as const },
+          { label: '$(file-add) Save as CSV', format: 'csv' as const, dest: 'file' as const },
+        ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Export visible logs...'
+    });
+
+    if (!picked) {
+      return;
+    }
+
+    const chosenDest = destination || ('dest' in picked ? picked.dest : 'clipboard');
+
+    if (this.view && this.isWebviewReady) {
+      this.view.webview.postMessage({
+        type: 'requestFormattedLogs',
+        format: picked.format,
+        destination: chosenDest
+      });
+    }
+  }
+
+  /**
+   * Handle formatted logs received from webview — write to clipboard or file
+   */
+  private async handleFormattedLogs(message: { content: string; format: string; destination: string; count: number }): Promise<void> {
+    if (message.count === 0) {
+      vscode.window.showInformationMessage('No visible logs to export.');
+      return;
+    }
+
+    if (message.destination === 'clipboard') {
+      await vscode.env.clipboard.writeText(message.content);
+      vscode.window.showInformationMessage(`Copied ${message.count} logs as ${message.format.toUpperCase()} to clipboard.`);
+    } else {
+      const extMap: Record<string, string> = { json: 'json', csv: 'csv', text: 'txt' };
+      const ext = extMap[message.format] || 'txt';
+
+      // Build default filename from session name
+      const session = this.currentSessionId ? this.sessions.get(this.currentSessionId) : undefined;
+      const sessionSlug = (session?.name || 'logs').replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+      const date = new Date().toISOString().slice(0, 10);
+      const defaultName = `slog-export-${sessionSlug}-${date}.${ext}`;
+
+      const filterLabel = `${message.format.toUpperCase()} files`;
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(defaultName),
+        filters: { [filterLabel]: [ext] }
+      });
+
+      if (uri) {
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(message.content, 'utf8'));
+        vscode.window.showInformationMessage(`Exported ${message.count} logs to ${uri.fsPath}`);
+      }
+    }
   }
 
   /**
