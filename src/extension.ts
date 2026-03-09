@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SlogDebugAdapterTrackerFactory } from './debugAdapterWrapper';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 import { SlogViewerTaskProvider } from './taskOutputTracker';
+import { FileLogLoader } from './fileLogLoader';
 
 let webviewProvider: SlogViewerWebviewProvider;
 
@@ -51,11 +52,27 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Register File Log Loader
+  const fileLogLoader = new FileLogLoader(webviewProvider);
+  context.subscriptions.push(fileLogLoader);
+
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('slog-viewer.clearLogs', () => {
       webviewProvider.clearLogs();
       vscode.window.showInformationMessage('Slog Viewer: Logs cleared');
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('slog-viewer.openLogFile', (uri?: vscode.Uri) => {
+      fileLogLoader.openFile(uri);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('slog-viewer.watchLogFile', (uri?: vscode.Uri) => {
+      fileLogLoader.openFile(uri, { watch: true });
     })
   );
 

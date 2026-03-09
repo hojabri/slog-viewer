@@ -8,6 +8,7 @@ Beautiful structured log viewer for debugging. Automatically transforms JSON/log
 
 - **Automatic Detection**: Detects and formats JSON/logfmt logs during debugging
 - **Task Support**: Capture structured logs from VS Code Tasks (`"type": "slogViewer"`)
+- **Open Log Files**: View any structured log file directly in the panel, with optional live tail
 - **Interactive UI**: Modern webview with VSCode theme integration
 - **Advanced Filtering**: Click any field to include/exclude logs by value
 - **Filtering & Search**: Filter by log level and search across messages
@@ -19,6 +20,7 @@ Beautiful structured log viewer for debugging. Automatically transforms JSON/log
 1. Install the extension
 2. **Option A — Debugging**: Start debugging (F5) and view formatted logs in the **Slog Viewer** panel
 3. **Option B — Tasks**: Define a task with `"type": "slogViewer"` in `.vscode/tasks.json` and run it
+4. **Option C — Log Files**: Run **"Slog Viewer: Open Log File"** from the Command Palette, or right-click a file in the Explorer
 
 ## Task Support
 
@@ -74,6 +76,25 @@ VS Code Tasks let you run commands directly from VS Code. By using `"type": "slo
 | `env`     | No       | Additional environment variables      |
 
 Variable substitution is supported: `${workspaceFolder}`, `${file}`, `${env:VAR_NAME}`.
+
+## Log File Support
+
+Open any log file containing structured JSON or logfmt entries directly in the Slog Viewer panel.
+
+### Opening a Log File
+
+- **Command Palette**: Run `Slog Viewer: Open Log File` and select a file
+- **Explorer Context Menu**: Right-click any file and select **Open Log File** or **Watch Log File (Live Tail)**
+
+### Live Tail (Watch Mode)
+
+Use **"Slog Viewer: Watch Log File (Live Tail)"** to monitor a file for new log entries in real time. New lines appended to the file automatically appear in the panel. Log rotation (file truncation) is handled automatically.
+
+### Notes
+
+- Each file appears as a separate session in the session dropdown
+- Non-structured lines (plain text, stack traces) are silently skipped
+- Any text file with JSON or logfmt log lines is supported (`.log`, `.json`, `.jsonl`, `.txt`, etc.)
 
 ## Supported Formats
 

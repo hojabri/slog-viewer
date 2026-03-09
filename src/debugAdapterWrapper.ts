@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { parseJSONLog, isJSONLog } from './logFormatter';
+import { processLogLine } from './logFormatter';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 
 // Maximum number of recent lines to track for deduplication
@@ -58,18 +58,15 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
         }
       }
 
-      // Check if line is JSON/logfmt
-      if (isJSONLog(line)) {
-        const parsed = parseJSONLog(line);
-        if (parsed) {
-          // Send parsed log to webview with session ID
-          this.webviewProvider.addLog(this.sessionId, parsed);
+      // Check if line is a structured log (JSON/logfmt)
+      const parsed = processLogLine(line);
+      if (parsed) {
+        this.webviewProvider.addLog(this.sessionId, parsed);
 
-          // Auto-show the webview on first log
-          if (!this.hasShownWebview) {
-            this.webviewProvider.show();
-            this.hasShownWebview = true;
-          }
+        // Auto-show the webview on first log
+        if (!this.hasShownWebview) {
+          this.webviewProvider.show();
+          this.hasShownWebview = true;
         }
       }
       // Note: We only display structured logs in the webview.

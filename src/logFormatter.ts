@@ -332,6 +332,18 @@ export function formatLog(parsed: ParsedLog, config: vscode.WorkspaceConfigurati
 }
 
 /**
+ * Try to parse a line as a structured log (JSON or logfmt).
+ * Returns ParsedLog if the line is a structured log, null otherwise.
+ * This is the shared entry point used by all log sources (debug adapter, tasks, file loader).
+ */
+export function processLogLine(line: string): ParsedLog | null {
+  if (!isJSONLog(line)) {
+    return null;
+  }
+  return parseJSONLog(line);
+}
+
+/**
  * Process a line from the debug console output
  * Returns formatted output if it's a JSON log, otherwise returns null
  */

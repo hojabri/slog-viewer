@@ -1,7 +1,11 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
-import { isJSONLog, parseJSONLog } from './logFormatter';
+import { processLogLine } from './logFormatter';
+import { processChunk, normalizeLineEndings } from './lineUtils';
 import { SlogViewerWebviewProvider } from './webviewPanel';
+
+// Re-export for backwards compatibility (used by fileLogLoader and tests)
+export { processChunk, normalizeLineEndings };
 
 // Maximum number of recent lines to track for deduplication
 const MAX_PROCESSED_LINES = 1000;
@@ -32,39 +36,6 @@ export function resolveVariables(value: string, folder?: vscode.WorkspaceFolder)
   });
 
   return result;
-}
-
-/**
- * Process a data chunk with line buffering, calling onLine for each complete line.
- * Returns the remaining incomplete line (to be buffered for the next chunk).
- */
-export function processChunk(
-  data: string,
-  lineBuffer: string,
-  onLine: (line: string) => void
-): string {
-  const combined = lineBuffer + data;
-  const lines = combined.split('\n');
-
-  // The last element is either an incomplete line or empty string
-  const remaining = lines.pop() ?? '';
-
-  for (const line of lines) {
-    // Strip trailing \r for Windows-style line endings
-    const cleaned = line.replace(/\r$/, '');
-    if (cleaned.trim()) {
-      onLine(cleaned);
-    }
-  }
-
-  return remaining;
-}
-
-/**
- * Normalize line endings for terminal display: convert all line endings to \r\n
- */
-export function normalizeLineEndings(data: string): string {
-  return data.replace(/\r\n|\r|\n/g, '\r\n');
 }
 
 /**
@@ -215,16 +186,14 @@ class SlogViewerPseudoterminal implements vscode.Pseudoterminal {
       }
     }
 
-    if (isJSONLog(line)) {
-      const parsed = parseJSONLog(line);
-      if (parsed) {
-        this.webviewProvider.addLog(this.sessionId, parsed);
+    const parsed = processLogLine(line);
+    if (parsed) {
+      this.webviewProvider.addLog(this.sessionId, parsed);
 
-        // Auto-show the webview on first structured log
-        if (!this.hasShownWebview) {
-          this.webviewProvider.show();
-          this.hasShownWebview = true;
-        }
+      // Auto-show the webview on first structured log
+      if (!this.hasShownWebview) {
+        this.webviewProvider.show();
+        this.hasShownWebview = true;
       }
     }
   }
