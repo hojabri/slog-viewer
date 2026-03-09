@@ -12,6 +12,7 @@ Beautiful structured log viewer for debugging. Automatically transforms JSON/log
 - **Interactive UI**: Modern webview with VSCode theme integration
 - **Advanced Filtering**: Click any field to include/exclude logs by value
 - **Filtering & Search**: Filter by log level and search across messages
+- **Export Logs**: Copy or save filtered logs as JSON, CSV, or text
 - **Collapsible Fields**: Click to expand/collapse JSON
 - **Works with Any Language**: Go slog, Node.js pino, Python structlog, and more
 

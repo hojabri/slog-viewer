@@ -170,6 +170,9 @@ window.addEventListener('message', event => {
         case 'setSessions':
             updateSessions(message.sessions, message.currentSessionId);
             break;
+        case 'requestFormattedLogs':
+            handleRequestFormattedLogs(message.format, message.destination);
+            break;
     }
 });
 
@@ -1294,6 +1297,125 @@ function resetFilterBuilder() {
     if (fieldSelect) fieldSelect.selectedIndex = 0;
     if (operatorSelect) operatorSelect.selectedIndex = 0;
     if (valueInput) valueInput.value = '';
+}
+
+// ============================================
+// EXPORT FUNCTIONS
+// ============================================
+
+// Get currently visible (non-hidden) logs
+function getVisibleLogs() {
+    const entries = logContainer.querySelectorAll('.log-entry:not(.hidden)');
+    const logs = getCurrentSessionLogs();
+    const visible = [];
+    entries.forEach(entry => {
+        const idx = parseInt(entry.dataset.index);
+        if (logs[idx]) {
+            visible.push(logs[idx]);
+        }
+    });
+    return visible;
+}
+
+// Flatten a ParsedLog into a simple object
+function flattenLog(log) {
+    const obj = {};
+    if (log.timestamp) obj.timestamp = log.timestamp;
+    if (log.level) obj.level = log.level;
+    if (log.message) obj.message = log.message;
+    if (log.otherFields) {
+        for (const [key, value] of Object.entries(log.otherFields)) {
+            obj[key] = value;
+        }
+    }
+    return obj;
+}
+
+function formatLogsAsJSON(logs) {
+    return JSON.stringify(logs.map(flattenLog), null, 2);
+}
+
+function formatLogsAsText(logs) {
+    return logs.map(log => {
+        const ts = formatTimestamp(log.timestamp);
+        const level = (log.level || '').padEnd(5);
+        const msg = log.message || '';
+        const fields = log.otherFields
+            ? Object.entries(log.otherFields)
+                .map(([k, v]) => {
+                    const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                    return `${k}=${val}`;
+                })
+                .join(' ')
+            : '';
+        return fields
+            ? `${ts} | ${level} | ${msg} | ${fields}`
+            : `${ts} | ${level} | ${msg}`;
+    }).join('\n');
+}
+
+function formatLogsAsCSV(logs) {
+    const flattened = logs.map(flattenLog);
+
+    // Collect all field names (preserving insertion order, timestamp/level/message first)
+    const fieldOrder = ['timestamp', 'level', 'message'];
+    const fieldSet = new Set(fieldOrder);
+    for (const obj of flattened) {
+        for (const key of Object.keys(obj)) {
+            if (!fieldSet.has(key)) {
+                fieldSet.add(key);
+                fieldOrder.push(key);
+            }
+        }
+    }
+
+    function escapeCSV(value) {
+        if (value === undefined || value === null) return '';
+        const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+
+    const header = fieldOrder.map(escapeCSV).join(',');
+    const rows = flattened.map(obj =>
+        fieldOrder.map(field => escapeCSV(obj[field])).join(',')
+    );
+    return [header, ...rows].join('\n');
+}
+
+function formatLogs(logs, format) {
+    switch (format) {
+        case 'json': return formatLogsAsJSON(logs);
+        case 'text': return formatLogsAsText(logs);
+        case 'csv': return formatLogsAsCSV(logs);
+        default: return formatLogsAsJSON(logs);
+    }
+}
+
+// Handle export button click — ask extension to show QuickPick
+function handleExportClick() {
+    vscode.postMessage({ type: 'requestExport' });
+}
+
+// Handle requestFormattedLogs from extension
+function handleRequestFormattedLogs(format, destination) {
+    const logs = getVisibleLogs();
+    const content = logs.length > 0 ? formatLogs(logs, format) : '';
+    vscode.postMessage({
+        type: 'formattedLogs',
+        content,
+        format,
+        destination,
+        count: logs.length
+    });
+}
+
+// Wire up export button
+const exportBtn = document.getElementById('exportBtn');
+if (exportBtn) {
+    exportBtn.addEventListener('click', handleExportClick);
 }
 
 // Initialize on load

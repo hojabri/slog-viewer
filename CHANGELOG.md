@@ -2,6 +2,14 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.4.0] - 2026-03-09
+
+### Added
+- **Export Logs**: Export filtered/visible logs to clipboard or file in JSON, CSV, or text format
+- Toolbar export button with VS Code native QuickPick for format and destination selection
+- Right-click context menu on log entries for quick copy/save access
+- New commands: `Slog Viewer: Copy Logs to Clipboard` and `Slog Viewer: Save Logs to File`
+
 ## [1.3.0] - 2026-03-09
 
 ### Added

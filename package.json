@@ -2,7 +2,7 @@
   "name": "slog-viewer",
   "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publisher": "hojabri",
   "icon": "icon.png",
   "repository": {
@@ -52,6 +52,18 @@
         "title": "Watch Log File (Live Tail)",
         "category": "Slog Viewer",
         "icon": "$(eye)"
+      },
+      {
+        "command": "slog-viewer.copyLogs",
+        "title": "Copy Logs to Clipboard",
+        "category": "Slog Viewer",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "slog-viewer.saveLogs",
+        "title": "Save Logs to File",
+        "category": "Slog Viewer",
+        "icon": "$(save-as)"
       }
     ],
     "menus": {
@@ -70,6 +82,18 @@
           "command": "slog-viewer.clearLogs",
           "when": "view == slog-viewer.logView",
           "group": "navigation"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "slog-viewer.copyLogs",
+          "when": "webviewId == 'slog-viewer.logView'",
+          "group": "export@1"
+        },
+        {
+          "command": "slog-viewer.saveLogs",
+          "when": "webviewId == 'slog-viewer.logView'",
+          "group": "export@2"
         }
       ],
       "explorer/context": [

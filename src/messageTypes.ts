@@ -20,7 +20,8 @@ export type ExtensionMessage =
   | AddLogMessage
   | ClearLogsMessage
   | UpdateConfigMessage
-  | SetSessionsMessage;
+  | SetSessionsMessage
+  | RequestFormattedLogsMessage;
 
 export interface AddLogMessage {
   type: 'addLog';
@@ -51,7 +52,9 @@ export type WebviewMessage =
   | FilterChangeMessage
   | CopyLogMessage
   | OpenFileMessage
-  | SelectSessionMessage;
+  | SelectSessionMessage
+  | RequestExportMessage
+  | FormattedLogsMessage;
 
 export interface ReadyMessage {
   type: 'ready';
@@ -77,6 +80,24 @@ export interface OpenFileMessage {
 export interface SelectSessionMessage {
   type: 'selectSession';
   sessionId: string;
+}
+
+export interface RequestExportMessage {
+  type: 'requestExport';
+}
+
+export interface FormattedLogsMessage {
+  type: 'formattedLogs';
+  content: string;
+  format: 'json' | 'csv' | 'text';
+  destination: 'clipboard' | 'file';
+  count: number;
+}
+
+export interface RequestFormattedLogsMessage {
+  type: 'requestFormattedLogs';
+  format: 'json' | 'csv' | 'text';
+  destination: 'clipboard' | 'file';
 }
 
 /**

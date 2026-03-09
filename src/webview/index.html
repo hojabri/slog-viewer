@@ -31,6 +31,11 @@
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M8 15l-4-4h3V5H4l4-4 4 4H9v6h3l-4 4z"/>
                     </svg>
                 </button>
+                <button id="exportBtn" class="toolbar-btn" title="Export logs">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M5 1H3l-.5.5v13l.5.5h10l.5-.5V5l-4-4H5zm5.5 4H8V2H4v12h8V5.5h-1.5zM6 6h1v3h2V6h1l-2-2-2 2z"/>
+                    </svg>
+                </button>
                 <div class="toolbar-divider"></div>
                 <div class="filter-group">
                     <select id="levelFilter" class="toolbar-select">
@@ -102,7 +107,7 @@
         </div>
 
         <!-- Log container -->
-        <div id="logContainer" class="log-container">
+        <div id="logContainer" class="log-container" data-vscode-context='{"webviewSection": "logs", "preventDefaultContextMenuItems": true}'>
             <div class="empty-state">
                 <div class="empty-icon">📋</div>
                 <p>No logs yet</p>
