@@ -2,7 +2,7 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
-## [Unreleased]
+## [1.4.0] - 2026-03-09
 
 ### Added
 - **Export Logs**: Export filtered/visible logs to clipboard or file in JSON, CSV, or text format
