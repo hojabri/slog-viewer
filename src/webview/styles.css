@@ -424,6 +424,37 @@ body {
     opacity: 0.7;
 }
 
+.empty-hints {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0 0;
+    text-align: left;
+    font-size: 12px;
+    line-height: 2;
+}
+
+.empty-hints li::before {
+    content: "›";
+    margin-right: 8px;
+    opacity: 0.5;
+}
+
+.empty-hints kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--border-color, #555);
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--input-background, #333);
+}
+
+.empty-hints code {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+    background: var(--input-background, #333);
+}
+
 /* Log entry */
 .log-entry {
     margin-bottom: 4px;

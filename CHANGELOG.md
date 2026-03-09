@@ -2,6 +2,41 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.3.0] - 2026-03-09
+
+### Added
+- **Open Log Files**: View any structured log file (JSON/logfmt) directly in the Slog Viewer panel
+- **Live Tail (Watch Mode)**: Monitor log files in real time with automatic detection of new entries and log rotation
+- **Explorer Context Menu**: Right-click any file to open or watch it in Slog Viewer
+- New commands: `Slog Viewer: Open Log File` and `Slog Viewer: Watch Log File (Live Tail)`
+
+### Changed
+- Extracted shared `processLogLine()` helper to eliminate duplicate parsing logic across debug adapter, task, and file log sources
+- Added bounded session log storage (FIFO eviction at 5000 entries) to prevent unbounded memory growth
+
+## [1.2.0] - 2026-02-17
+
+### Added
+- **VS Code Task support**: Run commands with `"type": "slogViewer"` in `tasks.json` to capture structured logs in the Slog Viewer panel while preserving terminal output
+- Task properties: `command`, `args`, `cwd`, `env` with VS Code variable substitution support
+
+## [1.1.3] - 2026-01-26
+
+### Added
+- **ECS (Elastic Common Schema) log format support**: Automatically detects and parses ECS-formatted logs alongside JSON and logfmt
+
+## [1.1.2] - 2025-12-30
+
+### Fixed
+- Fixed escaped quotes in logfmt string value parsing (Issue #1)
+- Fixed escaped backslashes in logfmt path values
+
+## [1.1.1] - 2025-12-01
+
+### Changed
+- Enhanced views configuration in `package.json`
+- Removed auto version bump from publish workflow
+
 ## [1.1.0] - 2025-12-01
 
 ### Added

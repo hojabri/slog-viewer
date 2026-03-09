@@ -2,7 +2,7 @@
   "name": "slog-viewer",
   "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "hojabri",
   "icon": "icon.png",
   "repository": {
@@ -23,20 +23,66 @@
     "debug",
     "console",
     "structured-logging",
-    "tasks"
+    "tasks",
+    "log-viewer"
   ],
   "activationEvents": [
     "onDebug",
-    "onTaskType:slogViewer"
+    "onTaskType:slogViewer",
+    "onCommand:slog-viewer.openLogFile",
+    "onCommand:slog-viewer.watchLogFile"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "slog-viewer.clearLogs",
-        "title": "Slog Viewer: Clear Logs"
+        "title": "Clear Logs",
+        "category": "Slog Viewer",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "slog-viewer.openLogFile",
+        "title": "Open Log File",
+        "category": "Slog Viewer",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "slog-viewer.watchLogFile",
+        "title": "Watch Log File (Live Tail)",
+        "category": "Slog Viewer",
+        "icon": "$(eye)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "slog-viewer.openLogFile",
+          "when": "view == slog-viewer.logView",
+          "group": "navigation"
+        },
+        {
+          "command": "slog-viewer.watchLogFile",
+          "when": "view == slog-viewer.logView",
+          "group": "navigation"
+        },
+        {
+          "command": "slog-viewer.clearLogs",
+          "when": "view == slog-viewer.logView",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "slog-viewer.openLogFile",
+          "group": "navigation"
+        },
+        {
+          "command": "slog-viewer.watchLogFile",
+          "group": "navigation"
+        }
+      ]
+    },
     "viewsContainers": {
       "panel": [
         {
@@ -58,7 +104,7 @@
     "viewsWelcome": [
       {
         "view": "slog-viewer.logView",
-        "contents": "No logs yet.\n\nStart debugging or run a slogViewer task to see formatted structured logs.\n\n[Start Debugging](command:workbench.action.debug.start)"
+        "contents": "No logs yet.\n\nStart debugging, run a slogViewer task, or open a log file to see formatted structured logs here.\n\n[$(debug-alt) Start Debugging](command:workbench.action.debug.start)\n[$(file-text) Open Log File](command:slog-viewer.openLogFile)\n[$(eye) Watch Log File (Live Tail)](command:slog-viewer.watchLogFile)\n\nYou can also right-click any file in the Explorer to open or watch it."
       }
     ],
     "taskDefinitions": [

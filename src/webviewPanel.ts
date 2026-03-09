@@ -11,6 +11,9 @@ import { ExtensionMessage, WebviewConfig, SessionInfo } from './messageTypes';
 // Maximum number of logs to buffer before webview is ready
 const MAX_PENDING_LOGS = 500;
 
+// Maximum number of logs to keep per session (matches webview-side MAX_LOGS)
+const MAX_SESSION_LOGS = 5000;
+
 // Internal session data including logs
 interface SessionData extends SessionInfo {
   logs: ParsedLog[];
@@ -92,10 +95,13 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
    * Add a log entry to the webview for a specific session
    */
   public addLog(sessionId: string, log: ParsedLog): void {
-    // Store log in the session data
+    // Store log in the session data with FIFO eviction
     const session = this.sessions.get(sessionId);
     if (session) {
       session.logs.push(log);
+      while (session.logs.length > MAX_SESSION_LOGS) {
+        session.logs.shift();
+      }
     }
 
     // Buffer logs if webview isn't ready yet
@@ -163,7 +169,7 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Add a new task session (not tied to a debug session)
+   * Add a non-debug session (task output, file log, etc.)
    */
   public addTaskSession(id: string, name: string): void {
     const sessionData: SessionData = { id, name, isActive: true, logs: [] };
@@ -190,6 +196,34 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     if (this.sessions.has(sessionId)) {
       this.currentSessionId = sessionId;
       this.sendSessionsToWebview();
+    }
+  }
+
+  /**
+   * Check if a session exists and is active
+   */
+  public isSessionActive(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    return session?.isActive === true;
+  }
+
+  /**
+   * Clear logs for a specific session by ID
+   */
+  public clearSessionLogs(sessionId: string): void {
+    // Clear pending logs for this session
+    this.pendingLogs = this.pendingLogs.filter(p => p.sessionId !== sessionId);
+
+    // Clear logs in session data
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.logs = [];
+    }
+
+    // If this is the current session, also clear the webview
+    if (sessionId === this.currentSessionId && this.view) {
+      const message: ExtensionMessage = { type: 'clearLogs' };
+      this.view.webview.postMessage(message);
     }
   }
 
