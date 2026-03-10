@@ -65,7 +65,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
 
         // Auto-show the webview on first log
         if (!this.hasShownWebview) {
-          this.webviewProvider.show();
+          this.webviewProvider.autoShow();
           this.hasShownWebview = true;
         }
       }
