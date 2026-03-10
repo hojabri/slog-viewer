@@ -297,6 +297,16 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Auto-show the panel if the autoReveal setting is enabled.
+   */
+  public autoShow(): void {
+    const config = vscode.workspace.getConfiguration('slogViewer');
+    if (config.get<boolean>('autoReveal', true)) {
+      this.show();
+    }
+  }
+
+  /**
    * Show QuickPick for export format + destination selection.
    * Called from toolbar button (via requestExport message) or from registered commands.
    */

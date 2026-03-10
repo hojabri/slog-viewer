@@ -127,10 +127,13 @@ time=2025-01-01T00:00:00Z level=info msg="Server started" port=8080
 
 Access via VSCode Settings → "Slog Viewer":
 
-- Toggle automatic formatting
-- Collapse JSON by default
-- Auto-scroll to latest logs
-- Theme: light, dark, or auto
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `slogViewer.autoReveal` | `true` | Automatically reveal the panel when the first structured log is detected. Set to `false` to open the panel manually. |
+| `slogViewer.collapseJSON` | `true` | Show JSON collapsed by default (click to expand) |
+| `slogViewer.showRawJSON` | `false` | Show the raw JSON log below each formatted entry |
+| `slogViewer.autoScroll` | `true` | Automatically scroll to the latest log entry |
+| `slogViewer.theme` | `auto` | Theme for the log viewer (`light`, `dark`, or `auto`) |
 
 ## License
 

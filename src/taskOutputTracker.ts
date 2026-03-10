@@ -192,7 +192,7 @@ class SlogViewerPseudoterminal implements vscode.Pseudoterminal {
 
       // Auto-show the webview on first structured log
       if (!this.hasShownWebview) {
-        this.webviewProvider.show();
+        this.webviewProvider.autoShow();
         this.hasShownWebview = true;
       }
     }
@@ -247,7 +247,6 @@ export class SlogViewerTaskProvider implements vscode.TaskProvider {
     const execution = new vscode.CustomExecution(async () => {
       // Create the task session in the webview
       webviewProvider.addTaskSession(sessionId, sessionName);
-      webviewProvider.show();
 
       return new SlogViewerPseudoterminal(
         resolvedCommand,

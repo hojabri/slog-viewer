@@ -42,7 +42,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.debug.onDidStartDebugSession((session) => {
       webviewProvider.addSession(session);
-      webviewProvider.show();
     })
   );
 
