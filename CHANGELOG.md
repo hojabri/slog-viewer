@@ -2,6 +2,16 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.5.1] - 2026-03-17
+
+### Fixed
+- Explorer context menu items no longer appear at the top of the menu (Issue #13)
+- Context menu now only shows for relevant file types (`.log`, `.json`, `.jsonl`, `.txt`, `.ndjson`)
+
+### Changed
+- Renamed "Open Log File" to "Open in Slog Viewer" for clarity
+- Renamed "Watch Log File (Live Tail)" to "Watch in Slog Viewer (Live Tail)" for clarity
+
 ## [1.4.0] - 2026-03-09
 
 ### Added
