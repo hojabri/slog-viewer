@@ -21,7 +21,7 @@ Beautiful structured log viewer for debugging. Automatically transforms JSON/log
 1. Install the extension
 2. **Option A — Debugging**: Start debugging (F5) and view formatted logs in the **Slog Viewer** panel
 3. **Option B — Tasks**: Define a task with `"type": "slogViewer"` in `.vscode/tasks.json` and run it
-4. **Option C — Log Files**: Run **"Slog Viewer: Open Log File"** from the Command Palette, or right-click a file in the Explorer
+4. **Option C — Log Files**: Run **"Slog Viewer: Open in Slog Viewer"** from the Command Palette, or right-click a file in the Explorer
 
 ## Task Support
 
@@ -84,12 +84,12 @@ Open any log file containing structured JSON or logfmt entries directly in the S
 
 ### Opening a Log File
 
-- **Command Palette**: Run `Slog Viewer: Open Log File` and select a file
-- **Explorer Context Menu**: Right-click any file and select **Open Log File** or **Watch Log File (Live Tail)**
+- **Command Palette**: Run `Slog Viewer: Open in Slog Viewer` and select a file
+- **Explorer Context Menu**: Right-click a log file and select **Open in Slog Viewer** or **Watch in Slog Viewer (Live Tail)**
 
 ### Live Tail (Watch Mode)
 
-Use **"Slog Viewer: Watch Log File (Live Tail)"** to monitor a file for new log entries in real time. New lines appended to the file automatically appear in the panel. Log rotation (file truncation) is handled automatically.
+Use **"Slog Viewer: Watch in Slog Viewer (Live Tail)"** to monitor a file for new log entries in real time. New lines appended to the file automatically appear in the panel. Log rotation (file truncation) is handled automatically.
 
 ### Notes
 
