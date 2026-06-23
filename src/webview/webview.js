@@ -22,11 +22,17 @@ let currentSessionId = null;
 // Runtime auto-scroll state (can be paused independently of config)
 let autoScrollActive = true;
 
+// In-place "View Context" state: while active, filters are temporarily
+// suppressed so the target log can be revealed inside the main list.
+let contextViewActive = false;
+let autoScrollWasActive = true;
+
 // Advanced filter state
 let activeFilters = [];  // Array of FilterCondition objects
 let availableFields = new Set(['message', 'level']);  // Discovered fields from logs
 let filterIdCounter = 0;  // For generating unique filter IDs
-// { field, value, fileInfo? } — fileInfo is only set when right-clicking JSON lines containing file paths
+// { field, value, fileInfo?, logIndex? } — fileInfo is only set when right-clicking JSON lines containing file paths
+// logIndex is set when right-clicking on a log entry header (for View Context)
 let contextMenuTarget = null;
 
 /** @type {WeakMap<object, Set<string>>} Tracks expanded JSON paths per log object across DOM rebuilds. */
@@ -135,6 +141,12 @@ function init() {
     // Initialize advanced filtering
     initContextMenu();
     initFilterBuilder();
+
+    // Context view banner restore button
+    const contextBannerRestore = document.getElementById('contextBannerRestore');
+    if (contextBannerRestore) {
+        contextBannerRestore.addEventListener('click', exitContextView);
+    }
 
     // Apply initial theme (will be updated when config is received)
     applyTheme(config.theme);
@@ -338,6 +350,9 @@ function handleSessionChange() {
 
 // Render logs for the current session
 function renderCurrentSessionLogs() {
+    // Exit View Context mode (the DOM is rebuilt; filters are re-applied below)
+    exitContextView();
+
     const session = sessions.get(currentSessionId);
     const logs = session ? session.logs : [];
 
@@ -417,11 +432,11 @@ function addLogToSession(sessionId, log) {
         const logElement = createLogElement(log, session.logs.length - 1);
         logContainer.appendChild(logElement);
 
-        // Apply filters to newly added log
-        if (!logMatchesAdvancedFilters(log) ||
+        // Apply filters to newly added log (suppressed while View Context is active)
+        if (!contextViewActive && (!logMatchesAdvancedFilters(log) ||
             (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
             (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
-                                    JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase())))) {
+                                    JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase()))))) {
             logElement.classList.add('hidden');
         }
 
@@ -476,6 +491,9 @@ function replaceSessionLogs(sessionId, logs) {
 
 // Clear logs for current session only
 function clearCurrentSessionLogs() {
+    // Exit View Context mode (the list is cleared below)
+    exitContextView();
+
     const session = sessions.get(currentSessionId);
     if (session) {
         session.logs = [];
@@ -624,6 +642,13 @@ function createLogElement(log, index) {
             }
         });
     }
+
+    // Right-click on header shows context menu with View Context option
+    header.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenuForLogEntry(e, index, log.message || '');
+    });
 
     entry.appendChild(header);
 
@@ -1120,6 +1145,13 @@ function applyFilters(level, searchText) {
     const logEntries = logContainer.querySelectorAll('.log-entry');
     const logs = getCurrentSessionLogs();
 
+    // While View Context is active, filters are temporarily suppressed so the
+    // target log (and everything around it) stays visible in the main list.
+    if (contextViewActive) {
+        logEntries.forEach(entry => entry.classList.remove('hidden'));
+        return;
+    }
+
     logEntries.forEach(entry => {
         const logLevel = entry.dataset.level;
         const logIndex = parseInt(entry.dataset.index);
@@ -1200,6 +1232,9 @@ function applyTheme(theme) {
 
 // Re-render all log entries (used when display settings change)
 function rerenderAllLogs() {
+    // Exit View Context mode (the DOM is rebuilt; filters are re-applied below)
+    exitContextView();
+
     const logs = getCurrentSessionLogs();
 
     // Clear the container
@@ -1509,9 +1544,13 @@ function attachContextMenuHandler(element, field, value, fileInfo) {
     });
 }
 
-// Show context menu on right-click
+// Show context menu on right-click (field-level: message, JSON fields)
 function showContextMenu(e, field, value, fileInfo) {
-    contextMenuTarget = { field, value: String(value), fileInfo: fileInfo || null };
+    // Find the parent log entry to get the log index for View Context
+    const logEntry = e.target.closest('.log-entry');
+    const logIndex = logEntry ? parseInt(logEntry.dataset.index, 10) : null;
+
+    contextMenuTarget = { field, value: String(value), fileInfo: fileInfo || null, logIndex: logIndex };
 
     const menu = document.getElementById('contextMenu');
     menu.classList.remove('hidden');
@@ -1535,8 +1574,49 @@ function showContextMenu(e, field, value, fileInfo) {
         fileSeparator.style.display = showFile ? '' : 'none';
     }
 
-    // Position menu near click, but keep on screen
-    const menuRect = menu.getBoundingClientRect();
+    // Show "View Context" if we found a parent log entry
+    const viewContextItem = document.getElementById('contextMenuViewContext');
+    const contextSeparator = document.getElementById('contextMenuContextSeparator');
+    if (viewContextItem) { viewContextItem.style.display = logIndex != null ? '' : 'none'; }
+    if (contextSeparator) { contextSeparator.style.display = logIndex != null ? '' : 'none'; }
+
+    positionContextMenu(menu, e);
+}
+
+// Show context menu on right-click on a log entry header (includes View Context)
+function showContextMenuForLogEntry(e, logIndex, message) {
+    contextMenuTarget = { field: 'message', value: String(message), fileInfo: null, logIndex: logIndex };
+
+    const menu = document.getElementById('contextMenu');
+    menu.classList.remove('hidden');
+
+    // Update include/exclude with message field
+    const includeItem = menu.querySelector('[data-action="include"]');
+    const excludeItem = menu.querySelector('[data-action="exclude"]');
+    const truncatedValue = contextMenuTarget.value.length > 30
+        ? contextMenuTarget.value.substring(0, 30) + '...'
+        : contextMenuTarget.value;
+
+    includeItem.innerHTML = `<span class="menu-icon">+</span> Include message = "${escapeHtml(truncatedValue)}"`;
+    excludeItem.innerHTML = `<span class="menu-icon">-</span> Exclude message = "${escapeHtml(truncatedValue)}"`;
+
+    // Hide "Open file" (no file info from header click)
+    const openFileItem = document.getElementById('contextMenuOpenFile');
+    const fileSeparator = document.getElementById('contextMenuFileSeparator');
+    if (openFileItem) { openFileItem.style.display = 'none'; }
+    if (fileSeparator) { fileSeparator.style.display = 'none'; }
+
+    // Show "View Context"
+    const viewContextItem = document.getElementById('contextMenuViewContext');
+    const contextSeparator = document.getElementById('contextMenuContextSeparator');
+    if (viewContextItem) { viewContextItem.style.display = ''; }
+    if (contextSeparator) { contextSeparator.style.display = ''; }
+
+    positionContextMenu(menu, e);
+}
+
+// Position context menu near click, keeping it on screen
+function positionContextMenu(menu, e) {
     let x = e.clientX;
     let y = e.clientY;
 
@@ -1572,6 +1652,11 @@ function handleContextMenuAction(action) {
     const { field, value } = contextMenuTarget;
 
     switch (action) {
+        case 'view_context':
+            if (contextMenuTarget.logIndex != null) {
+                openContextView(contextMenuTarget.logIndex);
+            }
+            break;
         case 'include':
             addFilter(field, 'equals', value, 'include');
             break;
@@ -1610,6 +1695,11 @@ function initContextMenu() {
     // Handle Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            // Exit View Context mode first if active
+            if (contextViewActive) {
+                exitContextView();
+                return;
+            }
             hideContextMenu();
             // Also hide filter builder
             const filterBuilder = document.getElementById('filterBuilder');
@@ -1630,6 +1720,82 @@ function initContextMenu() {
             });
         });
     }
+}
+
+// ============================================
+// CONTEXT VIEW (in-place reveal)
+// ============================================
+
+// Reveal a log entry inside the main list: temporarily suppress the active
+// filters, scroll the target into view, highlight it, and show the restore
+// banner. Re-targeting works too — invoking it on another log while already
+// active just moves the highlight and re-centers.
+function openContextView(targetIndex) {
+    const session = sessions.get(currentSessionId);
+    if (!session || !session.logs[targetIndex]) return;
+
+    const entering = !contextViewActive;
+    contextViewActive = true;
+
+    // Pause auto-scroll so new logs don't push the target away while reading
+    if (entering) {
+        autoScrollWasActive = autoScrollActive;
+        autoScrollActive = false;
+        updateAutoScrollButton();
+    }
+
+    // Show the restore banner
+    const banner = document.getElementById('contextBanner');
+    if (banner) {
+        banner.classList.remove('hidden');
+    }
+
+    // Move the highlight to the new target
+    const previousTarget = logContainer.querySelector('.log-entry.context-target');
+    if (previousTarget) {
+        previousTarget.classList.remove('context-target');
+    }
+    const targetEl = logContainer.querySelector(`.log-entry[data-index="${targetIndex}"]`);
+    if (targetEl) {
+        targetEl.classList.add('context-target');
+    }
+
+    // Show every log (filters are suppressed while contextViewActive is set)
+    applyAllFilters();
+
+    // Scroll the target into the center of the viewport
+    requestAnimationFrame(() => {
+        const el = logContainer.querySelector('.log-entry.context-target');
+        if (el) {
+            el.scrollIntoView({ block: 'center' });
+        }
+    });
+}
+
+// Restore the previous filters and leave View Context mode.
+function exitContextView() {
+    if (!contextViewActive) return;
+
+    contextViewActive = false;
+
+    // Remove highlight
+    const targetEl = logContainer.querySelector('.log-entry.context-target');
+    if (targetEl) {
+        targetEl.classList.remove('context-target');
+    }
+
+    // Hide the restore banner
+    const banner = document.getElementById('contextBanner');
+    if (banner) {
+        banner.classList.add('hidden');
+    }
+
+    // Restore the auto-scroll state from before entering context view
+    autoScrollActive = autoScrollWasActive;
+    updateAutoScrollButton();
+
+    // Re-apply the real filters (re-hides logs that don't match)
+    applyAllFilters();
 }
 
 // ============================================

@@ -1018,3 +1018,52 @@ body {
     margin-bottom: 12px;
     font-size: 14px;
 }
+
+/* ============================================
+   Context View Banner (in-place reveal)
+   ============================================ */
+.context-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--vscode-editor-background, var(--background));
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.context-banner.hidden {
+    display: none;
+}
+
+.context-banner-icon {
+    opacity: 0.7;
+}
+
+.context-banner-text {
+    flex: 1;
+    opacity: 0.8;
+}
+
+.context-banner-restore {
+    background: var(--button-secondary-background, var(--vscode-button-secondaryBackground));
+    color: var(--button-secondary-foreground, var(--vscode-button-secondaryForeground));
+    border: none;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.context-banner-restore:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Highlighted target log in context view */
+.log-entry.context-target {
+    outline: 2px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: -2px;
+    background: var(--vscode-editor-selectionBackground, rgba(255, 255, 255, 0.08));
+}
