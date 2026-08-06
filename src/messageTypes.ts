@@ -18,6 +18,7 @@ export interface SessionInfo {
  */
 export type ExtensionMessage =
   | AddLogMessage
+  | ReplaceSessionLogsMessage
   | ClearLogsMessage
   | UpdateConfigMessage
   | SetSessionsMessage
@@ -27,6 +28,16 @@ export interface AddLogMessage {
   type: 'addLog';
   log: ParsedLog;
   sessionId: string;
+}
+
+/**
+ * Replace the entire log list for a session. Used when settings that affect
+ * parsing (e.g. field aliases) change and already-loaded logs must be re-parsed.
+ */
+export interface ReplaceSessionLogsMessage {
+  type: 'replaceSessionLogs';
+  sessionId: string;
+  logs: ParsedLog[];
 }
 
 export interface SetSessionsMessage {
@@ -108,4 +119,5 @@ export interface WebviewConfig {
   showRawJSON: boolean;
   autoScroll: boolean;
   theme: 'light' | 'dark' | 'auto';
+  messageMaxLength: number;
 }

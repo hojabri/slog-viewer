@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ParsedLog } from './logFormatter';
+import { ParsedLog, parseJSONLog, getFieldAliases } from './logFormatter';
 import { ExtensionMessage, WebviewConfig, SessionInfo } from './messageTypes';
 
 // Maximum number of logs to buffer before webview is ready
@@ -277,7 +277,8 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
       collapseJSON: config.get<boolean>('collapseJSON', true),
       showRawJSON: config.get<boolean>('showRawJSON', false),
       autoScroll: config.get<boolean>('autoScroll', true),
-      theme: config.get<'light' | 'dark' | 'auto'>('theme', 'auto')
+      theme: config.get<'light' | 'dark' | 'auto'>('theme', 'auto'),
+      messageMaxLength: config.get<number>('messageMaxLength', 200)
     };
 
     const message: ExtensionMessage = {
@@ -286,6 +287,41 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     };
 
     this.view.webview.postMessage(message);
+  }
+
+  /**
+   * Re-parse every stored log with the current field-alias settings and push
+   * the refreshed logs to the webview. Lets a change to the
+   * slogViewer.*FieldAliases settings apply to already-loaded logs without
+   * reopening the source.
+   */
+  public reapplyFieldAliases(): void {
+    const aliases = getFieldAliases(vscode.workspace.getConfiguration('slogViewer'));
+
+    // Re-parse from the original raw line. parseJSONLog is used directly
+    // (rather than processLogLine) because these lines were already detected
+    // as structured logs — only the field extraction needs to be redone.
+    const reparse = (log: ParsedLog): ParsedLog => parseJSONLog(log.raw, aliases) ?? log;
+
+    for (const session of this.sessions.values()) {
+      session.logs = session.logs.map(reparse);
+    }
+    this.pendingLogs = this.pendingLogs.map(({ sessionId, log }) => ({
+      sessionId,
+      log: reparse(log)
+    }));
+
+    if (!this.view || !this.isWebviewReady) {
+      return;
+    }
+    for (const session of this.sessions.values()) {
+      const message: ExtensionMessage = {
+        type: 'replaceSessionLogs',
+        sessionId: session.id,
+        logs: session.logs
+      };
+      this.view.webview.postMessage(message);
+    }
   }
 
   /**

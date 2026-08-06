@@ -568,7 +568,51 @@ body {
 
 .log-message {
     flex: 1;
+    /* Allow the flex child to shrink so a long unbroken string cannot
+       force horizontal overflow of the log row. */
+    min-width: 0;
     font-size: 13px;
+}
+
+/* When the message is truncated it holds a preview + toggle; lay them
+   out on one line with the toggle pinned to the end. */
+.log-message:has(> .log-message-toggle) {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+/* Truncated message preview (collapsed: single line with ellipsis) */
+.log-message-preview {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-message-preview.expanded {
+    white-space: pre-wrap;
+    overflow: visible;
+    word-break: break-word;
+}
+
+/* "Show more" / "Show less" toggle */
+.log-message-toggle {
+    flex-shrink: 0;
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.log-message-toggle:hover,
+.log-message-toggle:focus {
+    text-decoration: underline;
+    color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground, #3794ff));
 }
 
 /* Log body (JSON fields) */

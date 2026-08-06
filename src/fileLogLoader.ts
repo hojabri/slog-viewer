@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { StringDecoder } from 'string_decoder';
-import { processLogLine, ParsedLog } from './logFormatter';
+import { processLogLine, getFieldAliases, ParsedLog, FieldAliases } from './logFormatter';
 import { processChunk } from './lineUtils';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 
@@ -19,6 +19,7 @@ interface WatcherState {
   debounceTimer?: ReturnType<typeof setTimeout>;
   isProcessing?: boolean;
   filePath: string;
+  fieldAliases: FieldAliases;
 }
 
 /**
@@ -85,12 +86,15 @@ export class FileLogLoader implements vscode.Disposable {
     this.webviewProvider.addTaskSession(sessionId, sessionName);
     this.webviewProvider.show();
 
+    // Snapshot field aliases for this file's read + watch lifetime
+    const fieldAliases = getFieldAliases(vscode.workspace.getConfiguration('slogViewer'));
+
     // Read and parse the file
     try {
-      const byteOffset = await this.readFile(filePath, sessionId);
+      const byteOffset = await this.readFile(filePath, sessionId, fieldAliases);
 
       if (watch) {
-        this.startWatching(sessionId, normalizedPath, filePath, byteOffset);
+        this.startWatching(sessionId, normalizedPath, filePath, byteOffset, fieldAliases);
       } else {
         this.webviewProvider.endSession(sessionId);
         // Remove from map so file can be reopened
@@ -107,8 +111,8 @@ export class FileLogLoader implements vscode.Disposable {
   /**
    * Parse a line and add to batch, flushing when batch is full.
    */
-  private addToBatch(line: string, batch: ParsedLog[], sessionId: string): boolean {
-    const parsed = processLogLine(line);
+  private addToBatch(line: string, batch: ParsedLog[], sessionId: string, aliases: FieldAliases): boolean {
+    const parsed = processLogLine(line, aliases);
     if (parsed) {
       batch.push(parsed);
       if (batch.length >= LOG_BATCH_SIZE) {
@@ -123,7 +127,7 @@ export class FileLogLoader implements vscode.Disposable {
    * Read a file from start, parsing structured logs.
    * Returns the total bytes read.
    */
-  private readFile(filePath: string, sessionId: string): Promise<number> {
+  private readFile(filePath: string, sessionId: string, aliases: FieldAliases): Promise<number> {
     return new Promise((resolve, reject) => {
       let lineBuffer = '';
       let logCount = 0;
@@ -137,7 +141,7 @@ export class FileLogLoader implements vscode.Disposable {
         totalBytes += Buffer.byteLength(str, 'utf8');
 
         lineBuffer = processChunk(str, lineBuffer, (line) => {
-          if (this.addToBatch(line, batch, sessionId)) {
+          if (this.addToBatch(line, batch, sessionId, aliases)) {
             logCount++;
           }
         });
@@ -146,7 +150,7 @@ export class FileLogLoader implements vscode.Disposable {
       stream.on('end', () => {
         // Flush remaining line buffer
         if (lineBuffer.trim()) {
-          if (this.addToBatch(lineBuffer, batch, sessionId)) {
+          if (this.addToBatch(lineBuffer, batch, sessionId, aliases)) {
             logCount++;
           }
         }
@@ -188,7 +192,7 @@ export class FileLogLoader implements vscode.Disposable {
         const data = decoder.write(buf);
 
         watcherState.lineBuffer = processChunk(data, watcherState.lineBuffer, (line) => {
-          this.addToBatch(line, batch, sessionId);
+          this.addToBatch(line, batch, sessionId, watcherState.fieldAliases);
         });
       });
 
@@ -197,7 +201,7 @@ export class FileLogLoader implements vscode.Disposable {
         const remaining = decoder.end();
         if (remaining) {
           watcherState.lineBuffer = processChunk(remaining, watcherState.lineBuffer, (line) => {
-            this.addToBatch(line, batch, sessionId);
+            this.addToBatch(line, batch, sessionId, watcherState.fieldAliases);
           });
         }
 
@@ -227,12 +231,13 @@ export class FileLogLoader implements vscode.Disposable {
   /**
    * Start watching a file for changes
    */
-  private startWatching(sessionId: string, normalizedPath: string, filePath: string, byteOffset: number): void {
+  private startWatching(sessionId: string, normalizedPath: string, filePath: string, byteOffset: number, fieldAliases: FieldAliases): void {
     const watcherState: WatcherState = {
       watcher: null!,
       byteOffset,
       lineBuffer: '',
-      filePath
+      filePath,
+      fieldAliases
     };
 
     try {
@@ -282,7 +287,7 @@ export class FileLogLoader implements vscode.Disposable {
         this.webviewProvider.clearSessionLogs(sessionId);
         watcherState.byteOffset = 0;
         watcherState.lineBuffer = '';
-        const totalBytes = await this.readFile(watcherState.filePath, sessionId);
+        const totalBytes = await this.readFile(watcherState.filePath, sessionId, watcherState.fieldAliases);
         watcherState.byteOffset = totalBytes;
       } else if (newSize > watcherState.byteOffset) {
         // New data appended — read only new bytes

@@ -8,6 +8,66 @@ export interface ParsedLog {
   raw: string;
 }
 
+/** Built-in field names recognized for each canonical field. */
+const TIME_KEYS = ['time', 'timestamp', 'ts', '@timestamp', 'datetime'];
+const LEVEL_KEYS = ['level', 'severity', 'lvl', 'loglevel', 'log.level'];
+const MESSAGE_KEYS = ['message', 'msg', 'text'];
+
+/** User-configured extra field names, in addition to the built-in defaults. */
+export interface FieldAliases {
+  time: string[];
+  level: string[];
+  message: string[];
+}
+
+const EMPTY_ALIASES: FieldAliases = { time: [], level: [], message: [] };
+
+/** Normalize one alias list: strings only, trimmed, non-empty, deduped. */
+function normalizeAliasList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if (trimmed) {
+        seen.add(trimmed);
+      }
+    }
+  }
+  return [...seen];
+}
+
+/**
+ * Read the `slogViewer.*FieldAliases` settings into a normalized FieldAliases.
+ */
+export function getFieldAliases(config: vscode.WorkspaceConfiguration): FieldAliases {
+  return {
+    time: normalizeAliasList(config.get('timeFieldAliases')),
+    level: normalizeAliasList(config.get('levelFieldAliases')),
+    message: normalizeAliasList(config.get('messageFieldAliases')),
+  };
+}
+
+/**
+ * Pick the first present field value from a list of candidate key names.
+ * Matching is case-insensitive and based on key existence (not truthiness),
+ * so falsy values like 0 or "" are still selected.
+ */
+function pickField(
+  lowerKeyMap: Map<string, any>,
+  candidates: string[]
+): any {
+  for (const candidate of candidates) {
+    const lower = candidate.toLowerCase();
+    if (lowerKeyMap.has(lower)) {
+      return lowerKeyMap.get(lower);
+    }
+  }
+  return undefined;
+}
+
 /**
  * Strip ANSI color codes from a string
  */
@@ -182,7 +242,7 @@ function parseLogfmt(line: string): Record<string, any> | null {
 /**
  * Check if a line is a structured log (JSON or logfmt)
  */
-export function isJSONLog(line: string): boolean {
+export function isJSONLog(line: string, aliases: FieldAliases = EMPTY_ALIASES): boolean {
   // Strip ANSI codes first
   const cleaned = stripAnsiCodes(line).trim();
 
@@ -196,19 +256,28 @@ export function isJSONLog(line: string): boolean {
     }
   }
 
-  // Check for logfmt format (key=value pairs)
-  // Must have at least time/timestamp and level and msg/message fields
-  const hasTimeField = /\b(?:time|timestamp)=/.test(cleaned);
-  const hasLevelField = /\blevel=/.test(cleaned);
-  const hasMsgField = /\b(?:msg|message)=/.test(cleaned);
+  // Check for logfmt format (key=value pairs). Parse the line and require a
+  // recognized time, level, and message key — this keeps detection aligned
+  // with what parseJSONLog can actually extract.
+  const parsed = parseLogfmt(cleaned);
+  if (!parsed) {
+    return false;
+  }
+  const lowerKeys = new Set(Object.keys(parsed).map(k => k.toLowerCase()));
+  const hasAny = (defaults: string[], extra: string[]): boolean =>
+    [...defaults, ...extra].some(k => lowerKeys.has(k.toLowerCase()));
 
-  return hasTimeField && hasLevelField && hasMsgField;
+  return (
+    hasAny(TIME_KEYS, aliases.time) &&
+    hasAny(LEVEL_KEYS, aliases.level) &&
+    hasAny(MESSAGE_KEYS, aliases.message)
+  );
 }
 
 /**
  * Parse a JSON log line and extract key fields
  */
-export function parseJSONLog(line: string): ParsedLog | null {
+export function parseJSONLog(line: string, aliases: FieldAliases = EMPTY_ALIASES): ParsedLog | null {
   try {
     // Strip ANSI codes before parsing
     const cleaned = stripAnsiCodes(line).trim();
@@ -227,10 +296,22 @@ export function parseJSONLog(line: string): ParsedLog | null {
       obj = parsed;
     }
 
-    // Extract common fields (check various common field names)
-    const timestamp = obj.time || obj.timestamp || obj.ts || obj['@timestamp'] || obj.datetime;
-    let level = obj.level || obj.severity || obj.lvl || obj.loglevel || obj['log.level'];
-    const message = obj.message || obj.msg || obj.text;
+    // Recognized key names: built-in defaults followed by user-configured aliases.
+    const timeKeys = [...TIME_KEYS, ...aliases.time];
+    const levelKeys = [...LEVEL_KEYS, ...aliases.level];
+    const messageKeys = [...MESSAGE_KEYS, ...aliases.message];
+
+    // Lowercased view of the object's keys, used for case-insensitive matching
+    // by both field extraction and the otherFields exclusion.
+    const lowerKeyMap = new Map<string, any>();
+    for (const [key, value] of Object.entries(obj)) {
+      lowerKeyMap.set(key.toLowerCase(), value);
+    }
+
+    // Extract common fields (built-in names + aliases, first match wins)
+    const timestamp = pickField(lowerKeyMap, timeKeys);
+    let level = pickField(lowerKeyMap, levelKeys);
+    const message = pickField(lowerKeyMap, messageKeys);
 
     // Normalize log level to standard values
     if (level) {
@@ -253,25 +334,14 @@ export function parseJSONLog(line: string): ParsedLog | null {
       }
     }
 
-    // Get other fields (excluding the extracted ones)
+    // Get other fields (excluding every recognized timestamp/level/message key).
+    // Uses the same lowercased name set as extraction so the two cannot disagree.
+    const recognizedKeys = new Set(
+      [...timeKeys, ...levelKeys, ...messageKeys].map(k => k.toLowerCase())
+    );
     const otherFields: Record<string, any> = {};
     for (const [key, value] of Object.entries(obj)) {
-      const keyLower = key.toLowerCase();
-      if (
-        keyLower !== 'time' &&
-        keyLower !== 'timestamp' &&
-        keyLower !== 'ts' &&
-        keyLower !== '@timestamp' &&
-        keyLower !== 'datetime' &&
-        keyLower !== 'level' &&
-        keyLower !== 'severity' &&
-        keyLower !== 'lvl' &&
-        keyLower !== 'loglevel' &&
-        keyLower !== 'log.level' &&
-        keyLower !== 'message' &&
-        keyLower !== 'msg' &&
-        keyLower !== 'text'
-      ) {
+      if (!recognizedKeys.has(key.toLowerCase())) {
         otherFields[key] = value;
       }
     }
@@ -336,23 +406,27 @@ export function formatLog(parsed: ParsedLog, config: vscode.WorkspaceConfigurati
  * Returns ParsedLog if the line is a structured log, null otherwise.
  * This is the shared entry point used by all log sources (debug adapter, tasks, file loader).
  */
-export function processLogLine(line: string): ParsedLog | null {
-  if (!isJSONLog(line)) {
+export function processLogLine(line: string, aliases: FieldAliases = EMPTY_ALIASES): ParsedLog | null {
+  if (!isJSONLog(line, aliases)) {
     return null;
   }
-  return parseJSONLog(line);
+  return parseJSONLog(line, aliases);
 }
 
 /**
  * Process a line from the debug console output
  * Returns formatted output if it's a JSON log, otherwise returns null
  */
-export function processLine(line: string, config: vscode.WorkspaceConfiguration): string | null {
-  if (!isJSONLog(line)) {
+export function processLine(
+  line: string,
+  config: vscode.WorkspaceConfiguration,
+  aliases: FieldAliases = EMPTY_ALIASES
+): string | null {
+  if (!isJSONLog(line, aliases)) {
     return null;
   }
 
-  const parsed = parseJSONLog(line);
+  const parsed = parseJSONLog(line, aliases);
   if (!parsed) {
     return null;
   }

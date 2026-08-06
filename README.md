@@ -136,6 +136,27 @@ Access via VSCode Settings → "Slog Viewer":
 | `slogViewer.showRawJSON` | `false` | Show the raw JSON log below each formatted entry |
 | `slogViewer.autoScroll` | `true` | Automatically scroll to the latest log entry |
 | `slogViewer.theme` | `auto` | Theme for the log viewer (`light`, `dark`, or `auto`) |
+| `slogViewer.messageMaxLength` | `200` | Maximum characters of a message shown before truncation (click "Show more" to expand). Set to `0` to disable. |
+| `slogViewer.timeFieldAliases` | `[]` | Extra field names recognized as the timestamp — see below. |
+| `slogViewer.levelFieldAliases` | `[]` | Extra field names recognized as the log level — see below. |
+| `slogViewer.messageFieldAliases` | `[]` | Extra field names recognized as the message — see below. |
+
+### Field aliases
+
+By default the timestamp, level, and message are read from common field names
+(`time`, `level`, `msg`/`message`, and others). If your logs use different
+keys, add them to the `slogViewer.*FieldAliases` settings and they will be
+rendered into the correct columns. Matching is case-insensitive.
+
+For example, to support Python's `logging` module output:
+
+```json
+"slogViewer.timeFieldAliases": ["asctime"],
+"slogViewer.levelFieldAliases": ["levelname"],
+"slogViewer.messageFieldAliases": ["desc"]
+```
+
+With the settings above, a log like `{"asctime":"2026-04-17 12:10:02","levelname":"INFO","desc":"title 1"}` is displayed the same as a standard `time`/`level`/`message` log. (For logfmt, alias names must be word characters.)
 
 ## License
 

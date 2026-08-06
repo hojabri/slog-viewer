@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
-import { processLogLine } from './logFormatter';
+import { processLogLine, getFieldAliases, FieldAliases } from './logFormatter';
 import { processChunk, normalizeLineEndings } from './lineUtils';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 
@@ -54,6 +54,7 @@ class SlogViewerPseudoterminal implements vscode.Pseudoterminal {
   private processedLines: Set<string> = new Set();
   private processedLinesQueue: string[] = [];
   private hasShownWebview = false;
+  private fieldAliases: FieldAliases = { time: [], level: [], message: [] };
 
   constructor(
     private command: string,
@@ -65,6 +66,9 @@ class SlogViewerPseudoterminal implements vscode.Pseudoterminal {
   ) {}
 
   open(): void {
+    // Snapshot field aliases for this task run
+    this.fieldAliases = getFieldAliases(vscode.workspace.getConfiguration('slogViewer'));
+
     // Build the full command string
     const fullCommand = this.args.length > 0
       ? `${this.command} ${this.args.join(' ')}`
@@ -186,7 +190,7 @@ class SlogViewerPseudoterminal implements vscode.Pseudoterminal {
       }
     }
 
-    const parsed = processLogLine(line);
+    const parsed = processLogLine(line, this.fieldAliases);
     if (parsed) {
       this.webviewProvider.addLog(this.sessionId, parsed);
 

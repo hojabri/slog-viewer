@@ -9,7 +9,8 @@ let config = {
     collapseJSON: true,
     showRawJSON: false,
     autoScroll: true,
-    theme: 'auto'
+    theme: 'auto',
+    messageMaxLength: 200
 };
 
 // Session management
@@ -164,6 +165,9 @@ window.addEventListener('message', event => {
     switch (message.type) {
         case 'addLog':
             addLogToSession(message.sessionId, message.log);
+            break;
+        case 'replaceSessionLogs':
+            replaceSessionLogs(message.sessionId, message.logs);
             break;
         case 'clearLogs':
             clearCurrentSessionLogs();
@@ -435,6 +439,36 @@ function addLogToSession(sessionId, log) {
     }
 }
 
+// Replace all logs for a session. Used when a parsing setting (e.g. field
+// aliases) changes and the extension re-parses already-loaded logs.
+function replaceSessionLogs(sessionId, logs) {
+    let session = sessions.get(sessionId);
+    if (!session) {
+        session = {
+            info: { id: sessionId, name: 'Unknown', isActive: true },
+            logs: [],
+            filters: createDefaultFilterState()
+        };
+        sessions.set(sessionId, session);
+    }
+
+    session.logs = logs;
+
+    // Rebuild the set of fields available for filtering from the new logs.
+    const fields = new Set(['message', 'level']);
+    logs.forEach(log => {
+        if (log.otherFields) {
+            Object.keys(log.otherFields).forEach(key => fields.add(key));
+        }
+    });
+    session.filters.availableFields = new Set(fields);
+
+    if (sessionId === currentSessionId) {
+        availableFields = new Set(fields);
+        renderCurrentSessionLogs();
+    }
+}
+
 // Clear logs for current session only
 function clearCurrentSessionLogs() {
     const session = sessions.get(currentSessionId);
@@ -476,6 +510,56 @@ function reindexLogEntries() {
     });
 }
 
+// Render the message text into a span, truncating long messages with a
+// "Show more"/"Show less" toggle. The context menu still receives the full
+// message, so copying is unaffected.
+function renderMessageContent(span, text) {
+    const fullText = String(text ?? '');
+    const max = config.messageMaxLength;
+
+    if (!max || max <= 0 || fullText.length <= max) {
+        span.textContent = fullText;
+        return;
+    }
+
+    // Collapsed preview keeps the message on a single line.
+    const collapsedText = fullText.slice(0, max).replace(/\s*\n\s*/g, ' ') + '…';
+
+    const preview = document.createElement('span');
+    preview.className = 'log-message-preview';
+    preview.textContent = collapsedText;
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'log-message-toggle';
+    toggle.textContent = 'Show more';
+
+    let expanded = false;
+    toggle.addEventListener('click', (e) => {
+        // Don't trigger the header's JSON expand/collapse handler.
+        e.stopPropagation();
+        expanded = !expanded;
+        if (expanded) {
+            preview.textContent = fullText;
+            preview.classList.add('expanded');
+            toggle.textContent = 'Show less';
+            // Pause auto-scroll so new logs don't push the message away
+            // while the user reads it (mirrors the header expand behavior).
+            if (autoScrollActive) {
+                autoScrollActive = false;
+                updateAutoScrollButton();
+            }
+        } else {
+            preview.textContent = collapsedText;
+            preview.classList.remove('expanded');
+            toggle.textContent = 'Show more';
+        }
+    });
+
+    span.appendChild(preview);
+    span.appendChild(toggle);
+}
+
 // Create log element
 function createLogElement(log, index) {
     const entry = document.createElement('div');
@@ -508,7 +592,7 @@ function createLogElement(log, index) {
 
     const message = document.createElement('span');
     message.className = 'log-message filterable';
-    message.textContent = log.message;
+    renderMessageContent(message, log.message);
     attachContextMenuHandler(message, 'message', log.message || '');
 
     header.appendChild(timestamp);
@@ -1179,6 +1263,7 @@ function updateConfig(newConfig) {
     const oldCollapseJSON = config.collapseJSON;
     const oldShowRawJSON = config.showRawJSON;
     const oldTheme = config.theme;
+    const oldMessageMaxLength = config.messageMaxLength;
 
     config = { ...config, ...newConfig };
 
@@ -1193,8 +1278,10 @@ function updateConfig(newConfig) {
         applyTheme(config.theme);
     }
 
-    // Re-render logs if collapseJSON or showRawJSON changed
-    if (oldCollapseJSON !== config.collapseJSON || oldShowRawJSON !== config.showRawJSON) {
+    // Re-render logs if collapseJSON, showRawJSON, or messageMaxLength changed
+    if (oldCollapseJSON !== config.collapseJSON ||
+        oldShowRawJSON !== config.showRawJSON ||
+        oldMessageMaxLength !== config.messageMaxLength) {
         rerenderAllLogs();
     }
 }

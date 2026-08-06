@@ -2,7 +2,7 @@
   "name": "slog-viewer",
   "displayName": "Slog Viewer - JSON Log Formatter",
   "description": "Beautiful structured log viewer for debugging. Automatically formats JSON/logfmt logs with syntax highlighting, filtering, and search. Works with any language (Go slog, Node.js pino, Python structlog, etc.)",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "publisher": "hojabri",
   "icon": "icon.png",
   "repository": {
@@ -165,19 +165,16 @@
     "configuration": {
       "title": "Slog Viewer",
       "properties": {
-        "slogViewer.collapseJSON": {
+        "slogViewer.autoReveal": {
           "type": "boolean",
           "default": true,
-          "description": "Show JSON collapsed by default (click to expand)"
-        },
-        "slogViewer.showRawJSON": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show the raw JSON log below each formatted entry"
+          "order": 1,
+          "description": "Automatically reveal the Slog Viewer panel when the first structured log is detected. When disabled, open the panel manually."
         },
         "slogViewer.autoScroll": {
           "type": "boolean",
           "default": true,
+          "order": 2,
           "description": "Automatically scroll to the latest log entry"
         },
         "slogViewer.theme": {
@@ -188,12 +185,48 @@
             "auto"
           ],
           "default": "auto",
+          "order": 3,
           "description": "Theme for the log viewer (auto uses VSCode theme)"
         },
-        "slogViewer.autoReveal": {
+        "slogViewer.collapseJSON": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically reveal the Slog Viewer panel when the first structured log is detected. When disabled, open the panel manually."
+          "order": 4,
+          "description": "Show JSON collapsed by default (click to expand)"
+        },
+        "slogViewer.showRawJSON": {
+          "type": "boolean",
+          "default": false,
+          "order": 5,
+          "description": "Show the raw JSON log below each formatted entry"
+        },
+        "slogViewer.messageMaxLength": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "order": 6,
+          "description": "Maximum characters of a log message shown before truncation. Click \"Show more\" to reveal the full message. Set to 0 to disable truncation."
+        },
+        "slogViewer.timeFieldAliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "order": 7,
+          "markdownDescription": "Extra field names to recognize as the timestamp, in addition to the built-in defaults (`time`, `timestamp`, `ts`, `@timestamp`, `datetime`). Matching is case-insensitive. Example: `asctime`."
+        },
+        "slogViewer.levelFieldAliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "order": 8,
+          "markdownDescription": "Extra field names to recognize as the log level, in addition to the built-in defaults (`level`, `severity`, `lvl`, `loglevel`, `log.level`). Matching is case-insensitive. Example: `levelname`."
+        },
+        "slogViewer.messageFieldAliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "order": 9,
+          "default": [],
+          "markdownDescription": "Extra field names to recognize as the message, in addition to the built-in defaults (`message`, `msg`, `text`). Matching is case-insensitive. Example: `desc`."
         }
       }
     }

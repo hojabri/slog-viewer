@@ -2,6 +2,15 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.7.0] - 2026-05-22
+
+### Added
+- **Configurable field aliases**: New `slogViewer.timeFieldAliases`, `slogViewer.levelFieldAliases`, and `slogViewer.messageFieldAliases` settings map non-standard log keys (e.g. Python's `asctime` / `levelname` / `message`) onto the timestamp, level, and message columns. Changes apply to already-loaded logs immediately. (Issue #17)
+- **Long message truncation**: Long messages are shown as a preview with a "Show more" / "Show less" toggle, controlled by the new `slogViewer.messageMaxLength` setting (default 200; set to 0 to disable). (Issue #21)
+
+### Changed
+- Field-name matching for the timestamp, level, and message is now case-insensitive.
+
 ## [1.6.0] - 2026-04-01
 
 ### Changed

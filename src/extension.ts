@@ -93,6 +93,14 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration('slogViewer')) {
         webviewProvider.updateConfig();
       }
+      // Field-alias changes affect parsing — re-parse already-loaded logs
+      if (
+        e.affectsConfiguration('slogViewer.timeFieldAliases') ||
+        e.affectsConfiguration('slogViewer.levelFieldAliases') ||
+        e.affectsConfiguration('slogViewer.messageFieldAliases')
+      ) {
+        webviewProvider.reapplyFieldAliases();
+      }
     })
   );
 }

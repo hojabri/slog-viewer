@@ -1,4 +1,4 @@
-import { isJSONLog, parseJSONLog } from './logFormatter';
+import { isJSONLog, parseJSONLog, FieldAliases } from './logFormatter';
 
 describe('logFormatter', () => {
   describe('isJSONLog', () => {
@@ -151,6 +151,74 @@ describe('logFormatter', () => {
       const result = parseJSONLog(input);
       expect(result).not.toBeNull();
       expect(result?.message).toBe('Error: "file not found" at line 42');
+    });
+  });
+
+  describe('field aliases', () => {
+    const pythonAliases: FieldAliases = {
+      time: ['asctime'],
+      level: ['levelname'],
+      message: ['desc'],
+    };
+
+    it('should extract aliased JSON fields into timestamp/level/message', () => {
+      const input = '{"asctime":"2026-04-17 12:10:02","levelname":"INFO","desc":"title 1"}';
+      const result = parseJSONLog(input, pythonAliases);
+      expect(result).not.toBeNull();
+      expect(result?.timestamp).toBe('2026-04-17 12:10:02');
+      expect(result?.level).toBe('INFO');
+      expect(result?.message).toBe('title 1');
+    });
+
+    it('should keep aliased fields out of otherFields', () => {
+      const input = '{"asctime":"2026-04-17 12:10:02","levelname":"INFO","desc":"title 1"}';
+      const result = parseJSONLog(input, pythonAliases);
+      expect(result?.otherFields.asctime).toBeUndefined();
+      expect(result?.otherFields.levelname).toBeUndefined();
+      expect(result?.otherFields.desc).toBeUndefined();
+    });
+
+    it('should leave aliased JSON fields in otherFields when no aliases supplied', () => {
+      const input = '{"asctime":"2026-04-17 12:10:02","levelname":"INFO","desc":"title 1"}';
+      const result = parseJSONLog(input);
+      expect(result?.timestamp).toBeUndefined();
+      expect(result?.level).toBeUndefined();
+      expect(result?.message).toBeUndefined();
+      expect(result?.otherFields.asctime).toBe('2026-04-17 12:10:02');
+      expect(result?.otherFields.desc).toBe('title 1');
+    });
+
+    it('should prefer a built-in field over an alias', () => {
+      const input = '{"time":"t1","asctime":"t2","levelname":"INFO","desc":"hello"}';
+      const result = parseJSONLog(input, pythonAliases);
+      expect(result?.timestamp).toBe('t1');
+    });
+
+    it('should match field names case-insensitively', () => {
+      const input = '{"AscTime":"2026-04-17","LevelName":"warn","Desc":"hi"}';
+      const result = parseJSONLog(input, pythonAliases);
+      expect(result?.timestamp).toBe('2026-04-17');
+      expect(result?.level).toBe('WARN');
+      expect(result?.message).toBe('hi');
+      expect(result?.otherFields.AscTime).toBeUndefined();
+    });
+
+    it('should detect aliased logfmt logs only when aliases are supplied', () => {
+      const line = 'asctime=2026-04-17 levelname=info desc=hello';
+      expect(isJSONLog(line)).toBe(false);
+      expect(isJSONLog(line, pythonAliases)).toBe(true);
+    });
+
+    it('should parse aliased logfmt logs', () => {
+      const result = parseJSONLog('asctime=2026-04-17 levelname=info desc="a message"', pythonAliases);
+      expect(result).not.toBeNull();
+      expect(result?.timestamp).toBe('2026-04-17');
+      expect(result?.level).toBe('INFO');
+      expect(result?.message).toBe('a message');
+    });
+
+    it('should not affect detection of standard logs when aliases are supplied', () => {
+      expect(isJSONLog('time=2024-01-01 level=info msg=hello', pythonAliases)).toBe(true);
     });
   });
 });

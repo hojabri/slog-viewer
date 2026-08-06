@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { processLogLine } from './logFormatter';
+import { processLogLine, getFieldAliases } from './logFormatter';
 import { SlogViewerWebviewProvider } from './webviewPanel';
 
 // Maximum number of recent lines to track for deduplication
@@ -36,6 +36,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
 
     // Refresh config to get latest settings
     this.config = vscode.workspace.getConfiguration('slogViewer');
+    const fieldAliases = getFieldAliases(this.config);
 
     // Process lines
     const lines = output.split('\n').filter((line: string) => line.trim());
@@ -59,7 +60,7 @@ export class SlogDebugAdapterTracker implements vscode.DebugAdapterTracker {
       }
 
       // Check if line is a structured log (JSON/logfmt)
-      const parsed = processLogLine(line);
+      const parsed = processLogLine(line, fieldAliases);
       if (parsed) {
         this.webviewProvider.addLog(this.sessionId, parsed);
 
