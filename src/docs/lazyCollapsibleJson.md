@@ -74,6 +74,8 @@ flowchart TD
 
 `renderCurrentSessionLogs` / `rerenderAllLogs` replace the log list DOM but keep **`session.logs` references**. On `buildLazyValueRoot`, if `isJsonPathExpanded(logRef, path)` is true, **`expand()`** runs immediately so the tree matches the **WeakMap** again.
 
+This applies only to rebuilds that keep the same `ParsedLog` objects. Field-alias setting changes use `replaceSessionLogs`, which re-parses each raw line and replaces `session.logs` with new `ParsedLog` objects, so the WeakMap keys no longer match and expansion state is reset.
+
 ```mermaid
 sequenceDiagram
   participant User
@@ -83,7 +85,7 @@ sequenceDiagram
   User->>DOM: expand node at path P
   DOM->>WeakMap: add P to Set for this log
 
-  Note over DOM: e.g. settings change triggers rerenderAllLogs
+  Note over DOM: e.g. display setting change triggers rerenderAllLogs
 
   DOM->>DOM: destroy and recreate log DOM
   DOM->>WeakMap: read Set for same log object
@@ -123,5 +125,6 @@ flowchart LR
 ### When expansion state is lost
 
 - **Different log object** (new parse, new array slot in `session.logs`): new WeakMap entry—no remembered paths.
+- **Field-alias settings changed**: `replaceSessionLogs` re-parses logs into new `ParsedLog` objects, so previous WeakMap entries do not apply.
 - **Log removed from session / cleared**: reference gone; WeakMap entry is eligible for GC.
 - **Collapse**: only that path is removed from the `Set`; children disappear from DOM; **nested paths may remain** in the `Set` until explicitly collapsed or the log is GC’d.
