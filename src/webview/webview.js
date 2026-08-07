@@ -32,6 +32,11 @@ let contextMenuTarget = null;
 /** @type {WeakMap<object, Set<string>>} Tracks expanded JSON paths per log object across DOM rebuilds. */
 const expandedJsonPathsByLog = new WeakMap();
 
+const {
+    appendJsonPath,
+    getValueAtOtherFieldsPath
+} = globalThis.SlogViewerPathUtils;
+
 // Filter operators
 const FILTER_OPERATORS = {
     contains: (fieldValue, filterValue) =>
@@ -776,27 +781,6 @@ function isPlainObjectLike(value) {
 }
 
 /**
- * @param {string} parentPath Path from root of `otherFields`
- * @param {string|number} segment Property name or array index
- * @returns {string}
- */
-function appendJsonPath(parentPath, segment) {
-    if (typeof segment === 'number') {
-        return `${parentPath}[${segment}]`;
-    }
-    if (parentPath === '') {
-        if (/^[a-zA-Z_$][\w$]*$/.test(segment)) {
-            return segment;
-        }
-        return `[${JSON.stringify(segment)}]`;
-    }
-    if (/^[a-zA-Z_$][\w$]*$/.test(segment)) {
-        return `${parentPath}.${segment}`;
-    }
-    return `${parentPath}[${JSON.stringify(segment)}]`;
-}
-
-/**
  * @param {object} logRef
  * @returns {Set<string>}
  */
@@ -1017,96 +1001,6 @@ function buildLazyValueRoot(value, ctx) {
     }
 
     return root;
-}
-
-/**
- * Parse a field path like `user.items[0].name` into segments for walking `otherFields`.
- *
- * @param {string} path
- * @returns {(string|number)[]}
- */
-function parsePathSegments(path) {
-    const segments = [];
-    let i = 0;
-    while (i < path.length) {
-        if (path[i] === '.') {
-            i++;
-            continue;
-        }
-        if (path[i] === '[') {
-            i++;
-            if (path[i] === '"' || path[i] === "'") {
-                const q = path[i];
-                i++;
-                let s = '';
-                while (i < path.length) {
-                    if (path[i] === '\\' && i + 1 < path.length) {
-                        i++;
-                        s += path[i];
-                        i++;
-                        continue;
-                    }
-                    if (path[i] === q) {
-                        i++;
-                        break;
-                    }
-                    s += path[i];
-                    i++;
-                }
-                segments.push(s);
-                if (path[i] === ']') {
-                    i++;
-                }
-            } else {
-                let n = '';
-                while (i < path.length && path[i] >= '0' && path[i] <= '9') {
-                    n += path[i];
-                    i++;
-                }
-                segments.push(Number(n));
-                if (path[i] === ']') {
-                    i++;
-                }
-            }
-            continue;
-        }
-        let ident = '';
-        while (i < path.length && /[a-zA-Z0-9_$]/.test(path[i])) {
-            ident += path[i];
-            i++;
-        }
-        if (ident) {
-            segments.push(ident);
-        } else {
-            break;
-        }
-    }
-    return segments;
-}
-
-/**
- * Read a nested value from `otherFields` using dot / bracket path notation.
- *
- * @param {Record<string, unknown>|undefined} otherFields
- * @param {string} path
- * @returns {unknown}
- */
-function getValueAtOtherFieldsPath(otherFields, path) {
-    if (!path || !otherFields || typeof otherFields !== 'object') {
-        return undefined;
-    }
-    const parts = parsePathSegments(path);
-    if (parts.length === 0) {
-        return undefined;
-    }
-    let cur = otherFields;
-    for (const p of parts) {
-        if (cur == null || typeof cur !== 'object') {
-            return undefined;
-        }
-        cur = cur[p];
-    }
-    return cur;
 }
 
 /**
