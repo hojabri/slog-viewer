@@ -721,8 +721,14 @@ function createJSONElement(obj, indent = 0, logRef = null) {
         colonSpan.textContent = ': ';
         line.appendChild(colonSpan);
 
-        // Value — pass fileInfo to avoid re-parsing
-        const valueSpan = createValueElement(value, fileInfo, logRef ? { logRef, path: key } : null);
+        // Value — pass fileInfo to avoid re-parsing.
+        // Build the root path through appendJsonPath so top-level keys containing
+        // dots or brackets get quoted, matching how nested paths are built.
+        const valueSpan = createValueElement(
+            value,
+            fileInfo,
+            logRef ? { logRef, path: appendJsonPath('', key) } : null
+        );
         line.appendChild(valueSpan);
 
         // Comma
