@@ -631,6 +631,7 @@ body {
 .json-line {
     padding: 2px 0;
     white-space: pre;
+    overflow-x: auto;
 }
 
 .json-key {
@@ -667,6 +668,60 @@ body {
 .json-file-link:hover {
     color: var(--vscode-textLink-foreground, #3794ff);
     text-decoration-style: solid;
+}
+
+/* Lazy collapsible object / array values */
+.json-lazy-value {
+    display: inline-block;
+    vertical-align: top;
+    max-width: 100%;
+}
+
+.json-lazy-header {
+    white-space: pre;
+}
+
+.json-lazy-toggle {
+    display: inline-block;
+    font-size: 12px;
+    font-family: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    padding: 0 4px 0 0;
+    margin: 0;
+    cursor: pointer;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.json-lazy-toggle:focus-visible {
+    outline: 1px solid var(--focus-border, var(--vscode-focusBorder, #007fd4));
+    outline-offset: 1px;
+}
+
+.json-lazy-meta {
+    opacity: 0.75;
+    font-size: 11px;
+}
+
+.json-lazy-children {
+    padding-left: 14px;
+    border-left: 1px solid var(--border-color);
+    margin: 2px 0 0 6px;
+}
+
+.json-lazy-children.hidden {
+    display: none;
+}
+
+.json-lazy-row {
+    padding: 1px 0;
+    white-space: pre;
+}
+
+.json-lazy-close-row {
+    padding-top: 0;
 }
 
 /* Original JSON (collapsed by default) */

@@ -462,13 +462,21 @@ export class SlogViewerWebviewProvider implements vscode.WebviewViewProvider {
     const css = fs.readFileSync(cssPath, 'utf8');
 
     // Read JavaScript
+    const pathUtilsPath = path.join(
+      this.extensionUri.fsPath,
+      'dist',
+      'webview',
+      'pathUtils.js'
+    );
+    const pathUtilsJs = fs.readFileSync(pathUtilsPath, 'utf8');
+
     const jsPath = path.join(
       this.extensionUri.fsPath,
       'dist',
       'webview',
       'webview.js'
     );
-    const js = fs.readFileSync(jsPath, 'utf8');
+    const js = `${pathUtilsJs}\n${fs.readFileSync(jsPath, 'utf8')}`;
 
     // Generate nonce for security
     const nonce = this.getNonce();

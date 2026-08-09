@@ -29,6 +29,14 @@ let filterIdCounter = 0;  // For generating unique filter IDs
 // { field, value, fileInfo? } — fileInfo is only set when right-clicking JSON lines containing file paths
 let contextMenuTarget = null;
 
+/** @type {WeakMap<object, Set<string>>} Tracks expanded JSON paths per log object across DOM rebuilds. */
+const expandedJsonPathsByLog = new WeakMap();
+
+const {
+    appendJsonPath,
+    getValueAtOtherFieldsPath
+} = globalThis.SlogViewerPathUtils;
+
 // Filter operators
 const FILTER_OPERATORS = {
     contains: (fieldValue, filterValue) =>
@@ -624,7 +632,7 @@ function createLogElement(log, index) {
     body.className = config.collapseJSON ? 'log-body collapsed' : 'log-body';
 
     if (log.otherFields && Object.keys(log.otherFields).length > 0) {
-        body.appendChild(createJSONElement(log.otherFields));
+        body.appendChild(createJSONElement(log.otherFields, 0, log));
     }
 
     entry.appendChild(body);
@@ -654,8 +662,14 @@ function createLogElement(log, index) {
     return entry;
 }
 
-// Create JSON element with syntax highlighting
-function createJSONElement(obj, indent = 0) {
+/**
+ * Create JSON element with syntax highlighting.
+ *
+ * @param {Record<string, unknown>} obj
+ * @param {number} [indent]
+ * @param {object | null} [logRef] Parsed log for lazy nested value expansion state
+ */
+function createJSONElement(obj, indent = 0, logRef = null) {
     const container = document.createElement('div');
 
     if (Object.keys(obj).length === 0) {
@@ -708,7 +722,7 @@ function createJSONElement(obj, indent = 0) {
         line.appendChild(colonSpan);
 
         // Value — pass fileInfo to avoid re-parsing
-        const valueSpan = createValueElement(value, fileInfo);
+        const valueSpan = createValueElement(value, fileInfo, logRef ? { logRef, path: key } : null);
         line.appendChild(valueSpan);
 
         // Comma
@@ -752,9 +766,252 @@ function parseFilePath(value) {
     return null;
 }
 
-// Create value element with proper styling
-// fileInfo is optional — passed from createJSONElement to avoid redundant parseFilePath calls
-function createValueElement(value, fileInfo) {
+// ============================================
+// LAZY COLLAPSIBLE JSON (objects / arrays)
+// ============================================
+
+/**
+ * 
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isPlainObjectLike(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value) &&
+        Object.prototype.toString.call(value) === '[object Object]';
+}
+
+/**
+ * @param {object} logRef
+ * @returns {Set<string>}
+ */
+function getOrCreateExpandedPathSet(logRef) {
+    let set = expandedJsonPathsByLog.get(logRef);
+    if (!set) {
+        set = new Set();
+        expandedJsonPathsByLog.set(logRef, set);
+    }
+    return set;
+}
+
+/** @param {object} logRef @param {string} path */
+function markJsonPathExpanded(logRef, path) {
+    getOrCreateExpandedPathSet(logRef).add(path);
+}
+
+/** @param {object} logRef @param {string} path */
+function markJsonPathCollapsed(logRef, path) {
+    const set = expandedJsonPathsByLog.get(logRef);
+    if (set) {
+        set.delete(path);
+    }
+}
+
+/** @param {object} logRef @param {string} path */
+function isJsonPathExpanded(logRef, path) {
+    const set = expandedJsonPathsByLog.get(logRef);
+    return !!set && set.has(path);
+}
+
+/**
+ * Remove all child nodes from a lazy children container (collapse).
+ *
+ * @param {HTMLElement} childrenEl
+ */
+function clearLazyChildren(childrenEl) {
+    while (childrenEl.firstChild) {
+        childrenEl.removeChild(childrenEl.firstChild);
+    }
+}
+
+/**
+ * Append one level of rows under a collapsible node; closing bracket on its own row.
+ *
+ * @param {HTMLElement} childrenEl
+ * @param {object|unknown[]} value
+ * @param {{ logRef: object, path: string }} ctx
+ * @param {string} closeCh `}` or `]`
+ */
+function appendImmediateChildren(childrenEl, value, ctx, closeCh) {
+    if (Array.isArray(value)) {
+        for (let index = 0; index < value.length; index++) {
+            const item = value[index];
+            const row = document.createElement('div');
+            row.className = 'json-lazy-row filterable';
+            const childPath = appendJsonPath(ctx.path, index);
+            const displayValue = item === null ? 'null' :
+                typeof item === 'object' ? JSON.stringify(item) : String(item);
+            const fileInfo = typeof item === 'string' ? parseFilePath(item) : null;
+            attachContextMenuHandler(row, childPath, displayValue, fileInfo);
+
+            const indexSpan = document.createElement('span');
+            indexSpan.className = 'json-key';
+            indexSpan.textContent = String(index);
+            row.appendChild(indexSpan);
+
+            const colonSpan = document.createElement('span');
+            colonSpan.className = 'json-punctuation';
+            colonSpan.textContent = ': ';
+            row.appendChild(colonSpan);
+
+            row.appendChild(createValueElement(item, fileInfo, { logRef: ctx.logRef, path: childPath }));
+
+            if (index < value.length - 1) {
+                const commaSpan = document.createElement('span');
+                commaSpan.className = 'json-punctuation';
+                commaSpan.textContent = ',';
+                row.appendChild(commaSpan);
+            }
+
+            childrenEl.appendChild(row);
+        }
+    } else {
+        const entries = Object.entries(value);
+        entries.forEach(([key, val], index) => {
+            const row = document.createElement('div');
+            row.className = 'json-lazy-row filterable';
+            const childPath = appendJsonPath(ctx.path, key);
+            const displayValue = val === null ? 'null' :
+                typeof val === 'object' ? JSON.stringify(val) : String(val);
+            const fileInfo = typeof val === 'string' ? parseFilePath(val) : null;
+            attachContextMenuHandler(row, childPath, displayValue, fileInfo);
+
+            const keySpan = document.createElement('span');
+            keySpan.className = 'json-key';
+            keySpan.textContent = `"${key}"`;
+            row.appendChild(keySpan);
+
+            const colonSpan = document.createElement('span');
+            colonSpan.className = 'json-punctuation';
+            colonSpan.textContent = ': ';
+            row.appendChild(colonSpan);
+
+            row.appendChild(createValueElement(val, fileInfo, { logRef: ctx.logRef, path: childPath }));
+
+            if (index < entries.length - 1) {
+                const commaSpan = document.createElement('span');
+                commaSpan.className = 'json-punctuation';
+                commaSpan.textContent = ',';
+                row.appendChild(commaSpan);
+            }
+
+            childrenEl.appendChild(row);
+        });
+    }
+
+    const closeLine = document.createElement('div');
+    closeLine.className = 'json-lazy-row json-lazy-close-row';
+    const closePunct = document.createElement('span');
+    closePunct.className = 'json-punctuation';
+    closePunct.textContent = closeCh;
+    closeLine.appendChild(closePunct);
+    childrenEl.appendChild(closeLine);
+}
+
+/**
+ * Build a collapsible object or array viewer (one DOM level at a time).
+ *
+ * @param {object|unknown[]} value
+ * @param {{ logRef: object, path: string }} ctx
+ * @returns {HTMLElement}
+ */
+function buildLazyValueRoot(value, ctx) {
+    const root = document.createElement('div');
+    root.className = 'json-lazy-value';
+
+    const isArray = Array.isArray(value);
+    const openCh = isArray ? '[' : '{';
+    const closeCh = isArray ? ']' : '}';
+
+    const header = document.createElement('span');
+    header.className = 'json-lazy-header';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'json-lazy-toggle collapse-icon collapsed';
+    toggle.textContent = '▼';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.title = 'Expand or collapse';
+
+    const openPunct = document.createElement('span');
+    openPunct.className = 'json-punctuation';
+    openPunct.textContent = openCh;
+
+    const suffix = document.createElement('span');
+    suffix.className = 'json-lazy-collapsed-suffix';
+
+    const ellipsis = document.createElement('span');
+    ellipsis.className = 'json-lazy-ellipsis';
+    ellipsis.textContent = ' … ';
+
+    const closePunctSuffix = document.createElement('span');
+    closePunctSuffix.className = 'json-punctuation';
+    closePunctSuffix.textContent = closeCh;
+
+    const meta = document.createElement('span');
+    meta.className = 'json-lazy-meta';
+    const count = isArray ? value.length : Object.keys(value).length;
+    meta.textContent = isArray
+        ? ` ${count} item${count === 1 ? '' : 's'}`
+        : ` ${count} key${count === 1 ? '' : 's'}`;
+
+    suffix.appendChild(ellipsis);
+    suffix.appendChild(closePunctSuffix);
+    suffix.appendChild(meta);
+
+    const childrenEl = document.createElement('div');
+    childrenEl.className = 'json-lazy-children hidden';
+
+    header.appendChild(toggle);
+    header.appendChild(openPunct);
+    header.appendChild(suffix);
+
+    root.appendChild(header);
+    root.appendChild(childrenEl);
+
+    const expand = () => {
+        clearLazyChildren(childrenEl);
+        appendImmediateChildren(childrenEl, value, ctx, closeCh);
+        suffix.style.display = 'none';
+        childrenEl.classList.remove('hidden');
+        toggle.classList.remove('collapsed');
+        toggle.setAttribute('aria-expanded', 'true');
+        markJsonPathExpanded(ctx.logRef, ctx.path);
+    };
+
+    const collapse = () => {
+        clearLazyChildren(childrenEl);
+        suffix.style.display = '';
+        childrenEl.classList.add('hidden');
+        toggle.classList.add('collapsed');
+        toggle.setAttribute('aria-expanded', 'false');
+        markJsonPathCollapsed(ctx.logRef, ctx.path);
+    };
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (toggle.getAttribute('aria-expanded') === 'true') {
+            collapse();
+        } else {
+            expand();
+        }
+    });
+
+    if (isJsonPathExpanded(ctx.logRef, ctx.path)) {
+        expand();
+    }
+
+    return root;
+}
+
+/**
+ * Create a styled DOM node for a JSON value (primitives, file links, or lazy object/array).
+ *
+ * @param {unknown} value
+ * @param {unknown} [fileInfo] Pre-parsed file link for strings (avoids duplicate `parseFilePath`)
+ * @param {{ logRef: object, path: string } | null} [ctx] When set, plain objects and non-empty arrays render lazily
+ * @returns {HTMLElement}
+ */
+function createValueElement(value, fileInfo, ctx) {
     const span = document.createElement('span');
 
     if (value === null) {
@@ -786,11 +1043,28 @@ function createValueElement(value, fileInfo) {
             span.textContent = `"${value}"`;
         }
     } else if (Array.isArray(value)) {
-        span.className = 'json-string';
-        span.textContent = JSON.stringify(value);
+        if (value.length === 0) {
+            span.className = 'json-punctuation';
+            span.textContent = '[]';
+        } else if (ctx && ctx.logRef) {
+            return buildLazyValueRoot(value, ctx);
+        } else {
+            span.className = 'json-string';
+            span.textContent = JSON.stringify(value);
+        }
     } else if (typeof value === 'object') {
-        span.className = 'json-string';
-        span.textContent = JSON.stringify(value);
+        if (!isPlainObjectLike(value)) {
+            span.className = 'json-string';
+            span.textContent = JSON.stringify(value);
+        } else if (Object.keys(value).length === 0) {
+            span.className = 'json-punctuation';
+            span.textContent = '{}';
+        } else if (ctx && ctx.logRef) {
+            return buildLazyValueRoot(value, ctx);
+        } else {
+            span.className = 'json-string';
+            span.textContent = JSON.stringify(value);
+        }
     } else {
         span.textContent = String(value);
     }
@@ -1040,7 +1314,10 @@ function matchFilter(log, filter) {
     } else if (field === 'level') {
         fieldValue = log.level || '';
     } else {
-        fieldValue = log.otherFields?.[field];
+        fieldValue = getValueAtOtherFieldsPath(log.otherFields, field);
+        if (fieldValue === undefined) {
+            fieldValue = log.otherFields?.[field];
+        }
         if (fieldValue === undefined || fieldValue === null) return false;
     }
 
@@ -1052,6 +1329,10 @@ function matchFilter(log, filter) {
 function getFieldValue(log, field) {
     if (field === 'message') return log.message || '';
     if (field === 'level') return log.level || '';
+    const nested = getValueAtOtherFieldsPath(log.otherFields, field);
+    if (nested !== undefined) {
+        return typeof nested === 'object' ? JSON.stringify(nested) : String(nested);
+    }
     return log.otherFields?.[field] ?? '';
 }
 
