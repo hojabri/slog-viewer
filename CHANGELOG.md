@@ -2,6 +2,17 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.8.0] - 2026-08-09
+
+### Added
+- **Lazy collapsible JSON**: Nested object and array fields now render as a collapsed summary (`{ … } 3 keys`) with a toggle. Expanding builds only the next level, so deeply nested structured logs stay fast. Expanded branches are remembered across view rebuilds, and empty objects and arrays render as `{}` / `[]`. (Issue #18, PR #19 by @amirho1)
+- **Filtering on nested fields**: The right-click include/exclude menu on a nested row builds a full field path (e.g. `user.address.city`), so filters can target values below the top level.
+
+### Fixed
+- Filtering no longer breaks when a field is typed with malformed bracket syntax; such paths are now rejected instead of resolving to an unrelated field.
+- Field paths resolve own properties only, so a filter on a name like `constructor.name` no longer matches against the prototype chain.
+- Top-level keys containing a dot or bracket now build correct child paths, so filters on their nested values resolve to the right field.
+
 ## [1.7.0] - 2026-05-22
 
 ### Added
