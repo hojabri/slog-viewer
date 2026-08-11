@@ -22,7 +22,7 @@ let currentSessionId = null;
 // Runtime auto-scroll state (can be paused independently of config)
 let autoScrollActive = true;
 
-// In-place "View Context" state: while active, filters are temporarily
+// In-place "Show Surrounding" state: while active, filters are temporarily
 // suppressed so the target log can be revealed inside the main list.
 let contextViewActive = false;
 let autoScrollWasActive = true;
@@ -32,7 +32,7 @@ let activeFilters = [];  // Array of FilterCondition objects
 let availableFields = new Set(['message', 'level']);  // Discovered fields from logs
 let filterIdCounter = 0;  // For generating unique filter IDs
 // { field, value, fileInfo?, logIndex? } — fileInfo is only set when right-clicking JSON lines containing file paths
-// logIndex is set when right-clicking on a log entry header (for View Context)
+// logIndex is set when right-clicking on a log entry header (for Show Surrounding)
 let contextMenuTarget = null;
 
 /** @type {WeakMap<object, Set<string>>} Tracks expanded JSON paths per log object across DOM rebuilds. */
@@ -350,7 +350,7 @@ function handleSessionChange() {
 
 // Render logs for the current session
 function renderCurrentSessionLogs() {
-    // Exit View Context mode (the DOM is rebuilt; filters are re-applied below)
+    // Exit Show Surrounding mode (the DOM is rebuilt; filters are re-applied below)
     exitContextView();
 
     const session = sessions.get(currentSessionId);
@@ -432,7 +432,7 @@ function addLogToSession(sessionId, log) {
         const logElement = createLogElement(log, session.logs.length - 1);
         logContainer.appendChild(logElement);
 
-        // Apply filters to newly added log (suppressed while View Context is active)
+        // Apply filters to newly added log (suppressed while Show Surrounding is active)
         if (!contextViewActive && (!logMatchesAdvancedFilters(log) ||
             (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
             (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
@@ -491,7 +491,7 @@ function replaceSessionLogs(sessionId, logs) {
 
 // Clear logs for current session only
 function clearCurrentSessionLogs() {
-    // Exit View Context mode (the list is cleared below)
+    // Exit Show Surrounding mode (the list is cleared below)
     exitContextView();
 
     const session = sessions.get(currentSessionId);
@@ -643,7 +643,7 @@ function createLogElement(log, index) {
         });
     }
 
-    // Right-click on header shows context menu with View Context option
+    // Right-click on header shows context menu with Show Surrounding option
     header.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1145,7 +1145,7 @@ function applyFilters(level, searchText) {
     const logEntries = logContainer.querySelectorAll('.log-entry');
     const logs = getCurrentSessionLogs();
 
-    // While View Context is active, filters are temporarily suppressed so the
+    // While Show Surrounding is active, filters are temporarily suppressed so the
     // target log (and everything around it) stays visible in the main list.
     if (contextViewActive) {
         logEntries.forEach(entry => entry.classList.remove('hidden'));
@@ -1232,7 +1232,7 @@ function applyTheme(theme) {
 
 // Re-render all log entries (used when display settings change)
 function rerenderAllLogs() {
-    // Exit View Context mode (the DOM is rebuilt; filters are re-applied below)
+    // Exit Show Surrounding mode (the DOM is rebuilt; filters are re-applied below)
     exitContextView();
 
     const logs = getCurrentSessionLogs();
@@ -1544,9 +1544,18 @@ function attachContextMenuHandler(element, field, value, fileInfo) {
     });
 }
 
+// Whether any filter (level, search, or advanced) is currently active.
+// "Show Surrounding" is hidden from the context menu when there's nothing to
+// filter out — revealing the log would just show what's already visible.
+function hasActiveFilters() {
+    return levelFilter.value !== 'all' ||
+        (searchInput.value && searchInput.value.trim()) ||
+        activeFilters.length > 0;
+}
+
 // Show context menu on right-click (field-level: message, JSON fields)
 function showContextMenu(e, field, value, fileInfo) {
-    // Find the parent log entry to get the log index for View Context
+    // Find the parent log entry to get the log index for Show Surrounding
     const logEntry = e.target.closest('.log-entry');
     const logIndex = logEntry ? parseInt(logEntry.dataset.index, 10) : null;
 
@@ -1574,16 +1583,18 @@ function showContextMenu(e, field, value, fileInfo) {
         fileSeparator.style.display = showFile ? '' : 'none';
     }
 
-    // Show "View Context" if we found a parent log entry
+    // Show "Show Surrounding" if we found a parent log entry and there are
+    // active filters to suppress (no filters = nothing to reveal)
+    const showContext = logIndex != null && hasActiveFilters();
     const viewContextItem = document.getElementById('contextMenuViewContext');
     const contextSeparator = document.getElementById('contextMenuContextSeparator');
-    if (viewContextItem) { viewContextItem.style.display = logIndex != null ? '' : 'none'; }
-    if (contextSeparator) { contextSeparator.style.display = logIndex != null ? '' : 'none'; }
+    if (viewContextItem) { viewContextItem.style.display = showContext ? '' : 'none'; }
+    if (contextSeparator) { contextSeparator.style.display = showContext ? '' : 'none'; }
 
     positionContextMenu(menu, e);
 }
 
-// Show context menu on right-click on a log entry header (includes View Context)
+// Show context menu on right-click on a log entry header (includes Show Surrounding)
 function showContextMenuForLogEntry(e, logIndex, message) {
     contextMenuTarget = { field: 'message', value: String(message), fileInfo: null, logIndex: logIndex };
 
@@ -1606,11 +1617,12 @@ function showContextMenuForLogEntry(e, logIndex, message) {
     if (openFileItem) { openFileItem.style.display = 'none'; }
     if (fileSeparator) { fileSeparator.style.display = 'none'; }
 
-    // Show "View Context"
+    // Show "Show Surrounding" only when there are active filters to suppress
+    const showContext = hasActiveFilters();
     const viewContextItem = document.getElementById('contextMenuViewContext');
     const contextSeparator = document.getElementById('contextMenuContextSeparator');
-    if (viewContextItem) { viewContextItem.style.display = ''; }
-    if (contextSeparator) { contextSeparator.style.display = ''; }
+    if (viewContextItem) { viewContextItem.style.display = showContext ? '' : 'none'; }
+    if (contextSeparator) { contextSeparator.style.display = showContext ? '' : 'none'; }
 
     positionContextMenu(menu, e);
 }
@@ -1695,7 +1707,7 @@ function initContextMenu() {
     // Handle Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            // Exit View Context mode first if active
+            // Exit Show Surrounding mode first if active
             if (contextViewActive) {
                 exitContextView();
                 return;
@@ -1772,7 +1784,7 @@ function openContextView(targetIndex) {
     });
 }
 
-// Restore the previous filters and leave View Context mode.
+// Restore the previous filters and leave Show Surrounding mode.
 function exitContextView() {
     if (!contextViewActive) return;
 
