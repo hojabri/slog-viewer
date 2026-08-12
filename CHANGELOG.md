@@ -2,6 +2,11 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.9.1] - 2026-08-12
+
+### Changed
+- Slimmed the published package from ~7MB to ~67KB: the extension no longer bundles sources, tests, source maps, development config, or the demo gif. No functional changes.
+
 ## [1.9.0] - 2026-08-12
 
 ### Added
