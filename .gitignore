@@ -5,6 +5,5 @@ dist
 *.log
 .vscode/
 scripts/
-.vscodeignore
 test-app.js
 CLAUDE.md

@@ -1,0 +1,23 @@
+# Development / editor config
+.vscode/**
+.github/**
+.claude/**
+.gitignore
+.eslintrc.json
+jest.config.js
+tsconfig.json
+CLAUDE.md
+
+# Sources (only dist/ is shipped)
+src/**
+node_modules/**
+package-lock.json
+
+# Build artifacts not needed at runtime
+dist/**/*.map
+dist/**/*.test.js
+dist/__mocks__/**
+
+# Media not needed inside the package (README links resolve to the repo)
+slog-viewer.gif
+icon.svg
