@@ -94,6 +94,10 @@
 
         <!-- Context Menu (hidden, positioned absolutely) -->
         <div class="context-menu hidden" id="contextMenu">
+            <div class="context-menu-item" data-action="view_context" id="contextMenuViewContext">
+                <span class="menu-icon">🔍</span> Show Surrounding
+            </div>
+            <div class="context-menu-separator" id="contextMenuContextSeparator"></div>
             <div class="context-menu-item" data-action="open_file" id="contextMenuOpenFile" style="display:none">
                 <span class="menu-icon">→</span> Open file
             </div>
@@ -108,6 +112,13 @@
             <div class="context-menu-item" data-action="copy">
                 <span class="menu-icon">📋</span> Copy value
             </div>
+        </div>
+
+        <!-- Context View Banner (in-place reveal, hidden by default) -->
+        <div class="context-banner hidden" id="contextBanner">
+            <span class="context-banner-icon">🔍</span>
+            <span class="context-banner-text">Showing surrounding logs — filters temporarily off</span>
+            <button class="context-banner-restore" id="contextBannerRestore">Restore filters (Esc)</button>
         </div>
 
         <!-- Log container -->
