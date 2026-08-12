@@ -2,6 +2,11 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.9.0] - 2026-08-12
+
+### Added
+- **Show Surrounding**: Right-click a log entry while filters are active and choose "Show Surrounding" to reveal the log in place — filters are temporarily suspended, the target is scrolled to center and highlighted, and a banner offers "Restore filters (Esc)". Auto-scroll pauses while active so incoming logs don't push the target away. (PR #25 by @Heming9)
+
 ## [1.8.0] - 2026-08-09
 
 ### Added
