@@ -2,6 +2,15 @@
 
 All notable changes to the "Slog Viewer" extension will be documented in this file.
 
+## [1.10.0] - 2026-08-16
+
+### Added
+- **Multi-level filtering**: The level filter is now a checkbox dropdown — select any combination of Error, Warning, Info, Debug, and Trace (no selection shows all levels). The button label summarizes the current selection. (Issue #26)
+
+### Fixed
+- The "No logs match your filters" message now updates as new logs stream in, instead of going stale.
+- "Clear All Filters" now also resets the search box clear icon.
+
 ## [1.9.1] - 2026-08-12
 
 ### Changed
