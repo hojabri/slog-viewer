@@ -15,7 +15,7 @@ let config = {
 
 // Session management
 // Each session stores: { info: SessionInfo, logs: ParsedLog[], filters: FilterState }
-// FilterState: { levelFilter: string, searchText: string, activeFilters: [], availableFields: Set }
+// FilterState: { selectedLevels: Set<string>, searchText: string, activeFilters: [], availableFields: Set }
 let sessions = new Map();
 let currentSessionId = null;
 
@@ -62,8 +62,19 @@ let scrollDebounceTimeout;
 // DOM elements
 const logContainer = document.getElementById('logContainer');
 const clearBtn = document.getElementById('clearBtn');
-const levelFilter = document.getElementById('levelFilter');
+const levelFilterBtn = document.getElementById('levelFilterBtn');
+const levelFilterPanel = document.getElementById('levelFilterPanel');
 const searchInput = document.getElementById('searchInput');
+
+// Selected log levels (lowercase). Empty set = show all levels.
+let selectedLevels = new Set();
+
+const LEVEL_LABELS = { error: 'Error', warn: 'Warn', info: 'Info', debug: 'Debug', trace: 'Trace' };
+
+// Whether the current level selection hides the given log
+function logHiddenByLevel(level) {
+    return selectedLevels.size > 0 && !selectedLevels.has(level);
+}
 
 // Check if scrolled to bottom (within threshold)
 function isScrolledToBottom() {
@@ -121,7 +132,7 @@ function updateAutoScrollButton() {
 // Initialize
 function init() {
     clearBtn.addEventListener('click', handleClear);
-    levelFilter.addEventListener('change', handleFilter);
+    initLevelFilter();
     searchInput.addEventListener('input', debounce(handleSearchWithClearBtn, 300));
 
     // Search clear button
@@ -208,7 +219,7 @@ window.addEventListener('message', event => {
 // Create default filter state for a new session
 function createDefaultFilterState() {
     return {
-        levelFilter: 'all',
+        selectedLevels: new Set(),
         searchText: '',
         activeFilters: [],
         availableFields: new Set(['message', 'level']),
@@ -268,7 +279,7 @@ function saveCurrentFilterState(sessionId) {
     if (!session) return;
 
     session.filters = {
-        levelFilter: levelFilter.value,
+        selectedLevels: new Set(selectedLevels),
         searchText: searchInput.value,
         activeFilters: [...activeFilters],
         availableFields: new Set(availableFields),
@@ -284,7 +295,8 @@ function restoreFilterState(sessionId) {
     const filters = session.filters;
 
     // Restore UI state
-    levelFilter.value = filters.levelFilter;
+    selectedLevels = new Set(filters.selectedLevels || []);
+    syncLevelFilterUI();
     searchInput.value = filters.searchText;
 
     // Update search clear button visibility
@@ -352,6 +364,7 @@ function handleSessionChange() {
 function renderCurrentSessionLogs() {
     // Exit Show Surrounding mode (the DOM is rebuilt; filters are re-applied below)
     exitContextView();
+    closeLevelFilterPanel();
 
     const session = sessions.get(currentSessionId);
     const logs = session ? session.logs : [];
@@ -434,11 +447,14 @@ function addLogToSession(sessionId, log) {
 
         // Apply filters to newly added log (suppressed while Show Surrounding is active)
         if (!contextViewActive && (!logMatchesAdvancedFilters(log) ||
-            (levelFilter.value !== 'all' && log.level?.toLowerCase() !== levelFilter.value) ||
+            logHiddenByLevel(log.level?.toLowerCase()) ||
             (searchInput.value && !((log.message || '').toLowerCase().includes(searchInput.value.toLowerCase()) ||
                                     JSON.stringify(log.otherFields).toLowerCase().includes(searchInput.value.toLowerCase()))))) {
             logElement.classList.add('hidden');
         }
+
+        // Keep the "no logs match" message in sync with the streamed log
+        updateNoResultsState();
 
         // Smart auto-scroll: only scroll if enabled AND active
         if (config.autoScroll && autoScrollActive) {
@@ -505,7 +521,8 @@ function clearCurrentSessionLogs() {
     activeFilters = [];
     availableFields = new Set(['message', 'level']);
     filterIdCounter = 0;
-    levelFilter.value = 'all';
+    selectedLevels = new Set();
+    syncLevelFilterUI();
     searchInput.value = '';
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     clearSearchBtn.style.display = 'none';
@@ -1126,22 +1143,13 @@ function handleClear() {
 }
 
 
-// Handle level filter
-function handleFilter() {
-    const level = levelFilter.value;
-    const searchText = searchInput.value;
-    applyFilters(level, searchText);
-}
-
 // Handle search
 function handleSearch() {
-    const level = levelFilter.value;
-    const searchText = searchInput.value;
-    applyFilters(level, searchText);
+    applyFilters(searchInput.value);
 }
 
 // Apply filters (level, search, and advanced filters)
-function applyFilters(level, searchText) {
+function applyFilters(searchText) {
     const logEntries = logContainer.querySelectorAll('.log-entry');
     const logs = getCurrentSessionLogs();
 
@@ -1163,7 +1171,7 @@ function applyFilters(level, searchText) {
         }
 
         // Level filter
-        const levelMatch = level === 'all' || logLevel === level.toLowerCase();
+        const levelMatch = !logHiddenByLevel(logLevel);
 
         // Search filter
         let searchMatch = true;
@@ -1379,9 +1387,7 @@ function getFieldValue(log, field) {
 
 // Apply all filters (level, search, and advanced)
 function applyAllFilters() {
-    const level = levelFilter.value;
-    const searchText = searchInput.value;
-    applyFilters(level, searchText);
+    applyFilters(searchInput.value);
 }
 
 // Render filter chips in the filter area
@@ -1508,7 +1514,7 @@ function updateNoResultsState() {
 
     let noResults = logContainer.querySelector('.no-filter-results');
 
-    if (hasLogs && visibleCount === 0 && (activeFilters.length > 0 || levelFilter.value !== 'all' || searchInput.value)) {
+    if (hasLogs && visibleCount === 0 && (activeFilters.length > 0 || selectedLevels.size > 0 || searchInput.value)) {
         if (!noResults) {
             noResults = document.createElement('div');
             noResults.className = 'no-filter-results';
@@ -1521,8 +1527,13 @@ function updateNoResultsState() {
 
             document.getElementById('clearFiltersBtn').addEventListener('click', () => {
                 clearAllAdvancedFilters();
-                levelFilter.value = 'all';
+                selectedLevels = new Set();
+                syncLevelFilterUI();
                 searchInput.value = '';
+                const clearSearchBtn = document.getElementById('clearSearchBtn');
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = 'none';
+                }
                 applyAllFilters();
             });
         }
@@ -1548,7 +1559,7 @@ function attachContextMenuHandler(element, field, value, fileInfo) {
 // "Show Surrounding" is hidden from the context menu when there's nothing to
 // filter out — revealing the log would just show what's already visible.
 function hasActiveFilters() {
-    return levelFilter.value !== 'all' ||
+    return selectedLevels.size > 0 ||
         (searchInput.value && searchInput.value.trim()) ||
         activeFilters.length > 0;
 }
@@ -1704,16 +1715,22 @@ function initContextMenu() {
     document.addEventListener('click', hideContextMenu);
     document.addEventListener('contextmenu', hideContextMenu);
 
-    // Handle Escape key
+    // Handle Escape key: close exactly one transient UI per press, topmost first
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            // Exit Show Surrounding mode first if active
+            const menu = document.getElementById('contextMenu');
+            if (menu && !menu.classList.contains('hidden')) {
+                hideContextMenu();
+                return;
+            }
             if (contextViewActive) {
                 exitContextView();
                 return;
             }
-            hideContextMenu();
-            // Also hide filter builder
+            if (isLevelFilterPanelOpen()) {
+                closeLevelFilterPanel({ refocus: true });
+                return;
+            }
             const filterBuilder = document.getElementById('filterBuilder');
             if (filterBuilder && !filterBuilder.classList.contains('hidden')) {
                 filterBuilder.classList.add('hidden');
@@ -1748,6 +1765,7 @@ function openContextView(targetIndex) {
 
     const entering = !contextViewActive;
     contextViewActive = true;
+    closeLevelFilterPanel();
 
     // Pause auto-scroll so new logs don't push the target away while reading
     if (entering) {
@@ -1808,6 +1826,116 @@ function exitContextView() {
 
     // Re-apply the real filters (re-hides logs that don't match)
     applyAllFilters();
+}
+
+// ============================================
+// LEVEL FILTER DROPDOWN (multi-select)
+// ============================================
+
+function isLevelFilterPanelOpen() {
+    return levelFilterPanel && !levelFilterPanel.classList.contains('hidden');
+}
+
+function openLevelFilterPanel() {
+    if (!levelFilterPanel) return;
+
+    // Only one popover at a time
+    hideContextMenu();
+    const filterBuilder = document.getElementById('filterBuilder');
+    if (filterBuilder && !filterBuilder.classList.contains('hidden')) {
+        filterBuilder.classList.add('hidden');
+        renderFilterChips();
+    }
+
+    levelFilterPanel.classList.remove('hidden');
+    levelFilterBtn.setAttribute('aria-expanded', 'true');
+
+    const firstCheckbox = levelFilterPanel.querySelector('input[type="checkbox"]');
+    if (firstCheckbox) {
+        firstCheckbox.focus();
+    }
+}
+
+function closeLevelFilterPanel(options) {
+    if (!isLevelFilterPanelOpen()) return;
+
+    levelFilterPanel.classList.add('hidden');
+    levelFilterBtn.setAttribute('aria-expanded', 'false');
+
+    if (options && options.refocus) {
+        levelFilterBtn.focus();
+    }
+}
+
+// Sync the trigger label and checkbox states with selectedLevels
+function syncLevelFilterUI() {
+    if (!levelFilterBtn || !levelFilterPanel) return;
+
+    levelFilterPanel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = selectedLevels.has(cb.value);
+    });
+
+    let label;
+    if (selectedLevels.size === 0) {
+        label = 'All Levels';
+    } else if (selectedLevels.size <= 2) {
+        // Fixed order so the label doesn't depend on click order
+        label = Object.keys(LEVEL_LABELS)
+            .filter(l => selectedLevels.has(l))
+            .map(l => LEVEL_LABELS[l])
+            .join('+');
+    } else {
+        label = `${selectedLevels.size} levels`;
+    }
+    levelFilterBtn.textContent = label;
+    levelFilterBtn.title = selectedLevels.size === 0
+        ? 'Filter by log level'
+        : 'Showing: ' + Object.keys(LEVEL_LABELS)
+            .filter(l => selectedLevels.has(l))
+            .map(l => LEVEL_LABELS[l])
+            .join(', ');
+}
+
+function initLevelFilter() {
+    if (!levelFilterBtn || !levelFilterPanel) return;
+
+    levelFilterBtn.addEventListener('click', () => {
+        if (isLevelFilterPanelOpen()) {
+            closeLevelFilterPanel();
+        } else {
+            openLevelFilterPanel();
+        }
+    });
+
+    levelFilterPanel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                selectedLevels.add(cb.value);
+            } else {
+                selectedLevels.delete(cb.value);
+            }
+            syncLevelFilterUI();
+            applyAllFilters();
+        });
+    });
+
+    const levelClearBtn = document.getElementById('levelFilterClear');
+    if (levelClearBtn) {
+        levelClearBtn.addEventListener('click', () => {
+            selectedLevels = new Set();
+            syncLevelFilterUI();
+            applyAllFilters();
+        });
+    }
+
+    // Close on click outside the wrapper (clicks inside keep it open)
+    document.addEventListener('click', (e) => {
+        if (isLevelFilterPanelOpen() && !e.target.closest('#levelFilterWrapper')) {
+            closeLevelFilterPanel();
+        }
+    });
+
+    syncLevelFilterUI();
 }
 
 // ============================================
