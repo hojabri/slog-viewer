@@ -1836,7 +1836,7 @@ function isLevelFilterPanelOpen() {
     return levelFilterPanel && !levelFilterPanel.classList.contains('hidden');
 }
 
-function openLevelFilterPanel() {
+function openLevelFilterPanel(focusFirst) {
     if (!levelFilterPanel) return;
 
     // Only one popover at a time
@@ -1850,9 +1850,13 @@ function openLevelFilterPanel() {
     levelFilterPanel.classList.remove('hidden');
     levelFilterBtn.setAttribute('aria-expanded', 'true');
 
-    const firstCheckbox = levelFilterPanel.querySelector('input[type="checkbox"]');
-    if (firstCheckbox) {
-        firstCheckbox.focus();
+    // Move focus into the panel only on keyboard opens — after a mouse click
+    // the programmatic focus would draw a focus ring on the first checkbox
+    if (focusFirst) {
+        const firstCheckbox = levelFilterPanel.querySelector('input[type="checkbox"]');
+        if (firstCheckbox) {
+            firstCheckbox.focus();
+        }
     }
 }
 
@@ -1899,11 +1903,12 @@ function syncLevelFilterUI() {
 function initLevelFilter() {
     if (!levelFilterBtn || !levelFilterPanel) return;
 
-    levelFilterBtn.addEventListener('click', () => {
+    levelFilterBtn.addEventListener('click', (e) => {
         if (isLevelFilterPanelOpen()) {
             closeLevelFilterPanel();
         } else {
-            openLevelFilterPanel();
+            // e.detail is 0 for keyboard-triggered clicks (Enter/Space)
+            openLevelFilterPanel(e.detail === 0);
         }
     });
 
