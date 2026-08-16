@@ -38,14 +38,20 @@
                 </button>
                 <div class="toolbar-divider"></div>
                 <div class="filter-group">
-                    <select id="levelFilter" class="toolbar-select">
-                        <option value="all">All Levels</option>
-                        <option value="error">Error</option>
-                        <option value="warn">Warning</option>
-                        <option value="info">Info</option>
-                        <option value="debug">Debug</option>
-                        <option value="trace">Trace</option>
-                    </select>
+                    <div class="level-filter" id="levelFilterWrapper">
+                        <button type="button" id="levelFilterBtn" class="level-filter-btn"
+                                aria-haspopup="true" aria-expanded="false" aria-controls="levelFilterPanel">All Levels</button>
+                        <div class="level-filter-panel hidden" id="levelFilterPanel" role="group" aria-label="Filter by log level">
+                            <label class="level-filter-option"><input type="checkbox" value="error"> Error</label>
+                            <label class="level-filter-option"><input type="checkbox" value="warn"> Warning</label>
+                            <label class="level-filter-option"><input type="checkbox" value="info"> Info</label>
+                            <label class="level-filter-option"><input type="checkbox" value="debug"> Debug</label>
+                            <label class="level-filter-option"><input type="checkbox" value="trace"> Trace</label>
+                            <div class="level-filter-panel-footer">
+                                <button type="button" id="levelFilterClear" class="btn btn-small">Clear selection (show all)</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="toolbar-right">

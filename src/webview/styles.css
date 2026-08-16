@@ -1067,3 +1067,102 @@ body {
     outline-offset: -2px;
     background: var(--vscode-editor-selectionBackground, rgba(255, 255, 255, 0.08));
 }
+
+/* ============================================
+   Level Filter Dropdown (multi-select)
+   ============================================ */
+.level-filter {
+    position: relative;
+}
+
+.level-filter-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--vscode-dropdown-background, var(--input-background));
+    color: var(--vscode-dropdown-foreground, var(--input-foreground));
+    border: 1px solid var(--vscode-dropdown-border, var(--input-border));
+    padding: 4px 24px 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    min-width: 100px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%23888888'%3E%3Cpath d='M4 6l4 4 4-4H4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
+    transition: border-color 0.15s ease;
+}
+
+.level-filter-btn:hover {
+    border-color: var(--vscode-focusBorder, var(--focus-border));
+}
+
+.level-filter-btn:focus-visible {
+    outline: none;
+    border-color: var(--vscode-focusBorder, var(--focus-border));
+    box-shadow: 0 0 0 1px var(--vscode-focusBorder, var(--focus-border));
+}
+
+.level-filter-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1000;
+    background: var(--menu-background, var(--vscode-menu-background, var(--background)));
+    border: 1px solid var(--menu-border, var(--vscode-menu-border, var(--border-color)));
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.level-filter-panel.hidden {
+    display: none;
+}
+
+.level-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.level-filter-option:hover {
+    background: var(--menu-selection-background, var(--vscode-menu-selectionBackground, var(--hover-background)));
+}
+
+.level-filter-option input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+}
+
+.level-filter-option input[type="checkbox"]:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, var(--focus-border));
+    outline-offset: 1px;
+}
+
+.level-filter-panel-footer {
+    border-top: 1px solid var(--menu-border, var(--vscode-menu-border, var(--border-color)));
+    margin-top: 4px;
+    padding: 6px 8px 2px;
+}
+
+.level-filter-panel-footer .btn-small {
+    width: 100%;
+}
+
+.level-filter-panel-footer .btn-small:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, var(--focus-border));
+    outline-offset: 1px;
+}
